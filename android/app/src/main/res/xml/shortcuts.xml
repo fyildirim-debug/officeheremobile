@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Uygulama kısayolları (başlatıcıda simgeye uzun basınca): yeni boş belge, tablo, sunu.
+     OfficeHereFilesPlugin ACTION_NEW intent'ini "newDocument" olayı olarak web tarafına iletir. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:targetApi="n_mr1">
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_kisayol_belge"
+        android:shortcutId="yeni_belge"
+        android:shortcutLongLabel="@string/kisayol_belge_uzun"
+        android:shortcutShortLabel="@string/kisayol_belge">
+        <intent
+            android:action="com.officehere.mobile.action.NEW"
+            android:targetClass="com.officehere.mobile.MainActivity"
+            android:targetPackage="com.officehere.mobile">
+            <extra android:name="com.officehere.mobile.APP" android:value="belge" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_kisayol_tablo"
+        android:shortcutId="yeni_tablo"
+        android:shortcutLongLabel="@string/kisayol_tablo_uzun"
+        android:shortcutShortLabel="@string/kisayol_tablo">
+        <intent
+            android:action="com.officehere.mobile.action.NEW"
+            android:targetClass="com.officehere.mobile.MainActivity"
+            android:targetPackage="com.officehere.mobile">
+            <extra android:name="com.officehere.mobile.APP" android:value="tablo" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_kisayol_sunum"
+        android:shortcutId="yeni_sunu"
+        android:shortcutLongLabel="@string/kisayol_sunum_uzun"
+        android:shortcutShortLabel="@string/kisayol_sunum">
+        <intent
+            android:action="com.officehere.mobile.action.NEW"
+            android:targetClass="com.officehere.mobile.MainActivity"
+            android:targetPackage="com.officehere.mobile">
+            <extra android:name="com.officehere.mobile.APP" android:value="sunum" />
+        </intent>
+    </shortcut>
+</shortcuts>

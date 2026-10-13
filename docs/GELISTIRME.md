@@ -22,8 +22,8 @@ tasarım belirteçleri yeniden yazılmaz.
 | `src/App.tsx` | Ekran yönlendirme (başlangıç ↔ belge ekranı), platform kurulumu |
 | `src/home/` | Başlangıç: yeni, aç, son kullanılanlar, ayarlar |
 | `src/belge/`, `src/tablo/`, `src/sunum/` | Uygulama ekranları (`export default function XScreen(props: DocScreenProps)`) |
-| `src/shell/` | Ortak kabuk: `AppBar`, `IconButton`, `BottomToolbar`, `ToolButton`, `Sheet`, `SheetTabs`, `toast`, `confirmDialog`, `useBackHandler`, `useTheme` |
-| `src/platform/` | Dosya seçme/kaydetme/paylaşma, son kullanılanlar (web ve Android) |
+| `src/shell/` | Ortak kabuk: `AppBar`, `IconButton`, `BottomToolbar`, `ToolButton`, `Sheet`, `SheetTabs`, `toast`, `confirmDialog`, `useBackHandler`, `useTheme`, `useTaslak` (otomatik kurtarma), `yazdir` (Yazdır / PDF) |
+| `src/platform/` | Dosya seçme/kaydetme/paylaşma, son kullanılanlar, yazdırma, pano (web ve Android); `taslak.ts` otomatik kurtarma deposu |
 | `src/styles/mobile.css` | Ortak mobil stiller (`m-` önekli sınıflar) |
 | `e2e/` | Playwright testleri (Pixel 7 görünümü) |
 | `android/` | Capacitor Android projesi |
@@ -38,6 +38,17 @@ Her ekran `DocScreenProps` alır: `{ doc, platform, onClose, dark }`.
   yazılamıyorsa (ör. `.doc`, `.xls`, `.ppt`) uzantı `docx`/`xlsx`/`pptx` yapılır ve
   kullanıcıya `toast` ile bildirilir. Paylaşma: `platform.shareFile(...)`.
 - Kaydedilmemiş değişiklik varken geri: `confirmDialog` → "Kaydet" / "Kaydetme" / "Vazgeç".
+- `doc.template` → masaüstü şablonundan yeni belge (`src/home/sablonlar.ts`; liste masaüstüyle
+  eşleşir, `sablonlar.test.ts` denetler).
+- Otomatik kurtarma: ekran `useTaslak` ile kaydedilmemiş hâli tam doğrulukla (docx/xlsx/pptx)
+  IndexedDB'ye yazar (arka plana geçişte ve düzenlerken 30 sn'de bir); kaydedince ya da ekran
+  kapanınca silinir. `doc.recovered` ile açılan taslak `dataName` ile ayrıştırılır, ad/biçim/konum
+  özgün belgenin olur ve ekran "Kaydedilmedi" durumunda açılır.
+- Yazdır / PDF: ekran masaüstünün yazdırma kökünü kurar (Belge `buildPrintRoot`, Tablo
+  `preparePrint` + `buildPrintHtml`, Sunum `PrintRoot`), `platform.print` sistem yazdırma
+  penceresini açar; döndüğünde kök kaldırılır. Yazdırma kuralları `html.bl-yazdiriliyor` /
+  `html.tb-yazdiriliyor` / `html.is-printing` ile sınırlıdır (uygulamalar birbirini etkilemez;
+  koyu temada da kâğıt beyaz).
 - Android geri tuşu: `useBackHandler` (açık panel önce kapanır, sonra ekran).
 - Yerleşim: `div.m-screen` > `AppBar` (geri, dosya adı, alt satırda uygulama adı ve kayıt
   durumu, sağda geri al / yinele / kaydet / paylaş / daha fazla) > `main.m-content` >
@@ -87,6 +98,11 @@ Her ekran `DocScreenProps` alır: `{ doc, platform, onClose, dark }`.
   `python3 resources/uret.py`.
 - Dosya erişimi yalnız Android depolama erişim çerçevesiyle (belge seçici, "Birlikte aç",
   "Gönder") yapılır; manifestte internet ya da depolama izni yoktur.
+- `OfficeHereSystemPlugin`: yazdırma (`WebView.createPrintDocumentAdapter` + `PrintManager`; iş
+  bitince çözülür) ve pano (yerel `ClipboardManager`; WebView panodan okuyamaz).
+- Uygulama kısayolları `res/xml/shortcuts.xml`: `ACTION_NEW` + `com.officehere.mobile.APP`
+  OfficeHereFilesPlugin'de `newDocument` olayı olur, web tarafına `onExternalOpen` ile boş belge
+  olarak gelir.
 - Kaydetme: açık belge aynı konuma yazılır; yeni belgede, uzantı değişiminde ve
   "Farklı kaydet"te (`saveFile(..., { saveAs: true })`) konum sorulur. Vazgeçilirse
   `AbortError` fırlar ve hata olarak gösterilmez.

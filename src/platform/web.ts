@@ -105,4 +105,41 @@ export const webPlatform: Platform = {
   onExternalOpen() {
     return () => {};
   },
+  async print() {
+    // Tarayıcının yazdırma penceresi ("PDF olarak kaydet" dahil); pencere kapanınca döner.
+    window.print();
+  },
+  async writeClipboard(c) {
+    const cb = navigator.clipboard as Clipboard | undefined;
+    try {
+      if (c.html && cb && typeof cb.write === "function" && typeof ClipboardItem !== "undefined") {
+        await cb.write([new ClipboardItem({ "text/plain": new Blob([c.text], { type: "text/plain" }), "text/html": new Blob([c.html], { type: "text/html" }) })]);
+        return;
+      }
+      await cb?.writeText(c.text);
+    } catch {
+      // izin yoksa yalnız uygulama içi pano kullanılır
+    }
+  },
+  async readClipboard() {
+    const cb = navigator.clipboard as Clipboard | undefined;
+    try {
+      if (cb && typeof cb.read === "function") {
+        let text = "";
+        let html: string | undefined;
+        for (const it of await cb.read()) {
+          if (it.types.includes("text/html")) html = await (await it.getType("text/html")).text();
+          if (it.types.includes("text/plain")) text = await (await it.getType("text/plain")).text();
+        }
+        return text || html ? { text, html } : null;
+      }
+      if (cb) {
+        const text = await cb.readText();
+        return text ? { text } : null;
+      }
+    } catch {
+      // izin verilmedi
+    }
+    return null;
+  },
 };

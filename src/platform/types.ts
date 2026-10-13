@@ -13,6 +13,13 @@ export interface OpenedDoc {
   app: AppKind;
   /** Cihazdaki kaydedilmiş konum (yeniden kaydetmek için); yoksa yeni/geçici belge. */
   uri?: string;
+  /**
+   * Otomatik kurtarılan taslak: data özgün biçimde değil tam doğrulukla (docx/xlsx/pptx) kodlanmıştır,
+   * `dataName` ile ayrıştırılır; ad, biçim ve konum özgün belgeninkidir. Ekran kaydedilmemiş olarak açılır.
+   */
+  recovered?: { id: string; dataName: string; savedAt: number; ek?: unknown };
+  /** Şablondan yeni belge (data === null): masaüstü şablon kimliği (ör. "letter", "budget"). */
+  template?: string;
 }
 
 export interface SaveOptions {
@@ -35,6 +42,20 @@ export interface RecentFile {
   pinned?: boolean;
 }
 
+/** Yazdırma işi: yazdırma kökü (yalnız @media print'te görünen sayfa kopyaları) önceden kurulur. */
+export interface PrintJob {
+  /** İş adı; "PDF olarak kaydet"te önerilen dosya adı (uzantısız). */
+  name: string;
+  /** İlk sayfanın boyutu (inç): iletişim kutusunda varsayılan kâğıt ve yönlendirme. */
+  page?: { width: number; height: number };
+}
+
+/** Pano içeriği: düz metin (tabloda sekmeyle ayrılmış) ve varsa HTML. */
+export interface ClipContent {
+  text: string;
+  html?: string;
+}
+
 export interface Platform {
   /** Capacitor (Android) içinde mi? */
   native: boolean;
@@ -55,8 +76,20 @@ export interface Platform {
   pinRecent(name: string, uri: string | undefined, pinned: boolean): Promise<void>;
   /** Son kullanılan dosyayı yeniden açar; dosya yoksa null. */
   openRecent(f: RecentFile): Promise<OpenedDoc | null>;
-  /** Başka uygulamadan "OfficeHere ile aç" ile gelen dosyalar için dinleyici. */
+  /**
+   * Başka uygulamadan "OfficeHere ile aç" ile gelen dosyalar ve uygulama kısayolları
+   * ("Yeni belge" vb.; data === null) için dinleyici.
+   */
   onExternalOpen(cb: (doc: OpenedDoc) => void): () => void;
+  /**
+   * Yazdırma iletişim kutusu: Android'de sistem yazdırma (yazıcı ya da "PDF olarak kaydet"),
+   * tarayıcıda window.print(). İş bittiğinde (ya da vazgeçilince) döner; yazdırma kökü sonra kaldırılır.
+   */
+  print(job: PrintJob): Promise<void>;
+  /** Sistem panosuna yazar (diğer uygulamalara yapıştırılabilir). */
+  writeClipboard(c: ClipContent): Promise<void>;
+  /** Sistem panosunu okur; okunamıyor ya da boşsa null. */
+  readClipboard(): Promise<ClipContent | null>;
 }
 
 /** Her belge ekranının aldığı özellikler. */

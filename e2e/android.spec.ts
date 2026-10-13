@@ -15,8 +15,11 @@ interface Call {
   options: Record<string, unknown>;
 }
 
-/** Sayfa betiklerinden önce: sahte yerel köprü. coldStart verilirse dinleyici bağlanınca gönderilir. */
-async function androidMode(page: Page, coldStart?: Record<string, unknown>) {
+/**
+ * Sayfa betiklerinden önce: sahte yerel köprü. coldStart verilirse dinleyici bağlanınca gönderilir;
+ * kisayol verilirse uygulama kısayoluyla ("Yeni belge" vb.) soğuk açılış.
+ */
+async function androidMode(page: Page, coldStart?: Record<string, unknown>, kisayol?: string) {
   await page.route("**/_capacitor_file_/**", (route) => route.fulfill({ status: 200, body: ORNEK, contentType: "application/octet-stream" }));
   await page.addInitScript((cold) => {
     type Fn = (o: Record<string, unknown>) => unknown;
@@ -36,6 +39,7 @@ async function androidMode(page: Page, coldStart?: Record<string, unknown>) {
       PluginHeaders: [
         { name: "OfficeHereFiles", methods: [...promise("pickDocument", "readDocument", "writeDocument", "createDocument", "discard", "releaseUnused"), ...events] },
         { name: "OfficeHereWindow", methods: promise("setBackground", "ready") },
+        { name: "OfficeHereSystem", methods: promise("print", "writeClipboard", "readClipboard") },
         { name: "Filesystem", methods: promise("writeFile", "appendFile", "deleteFile") },
         { name: "Share", methods: promise("share") },
         { name: "StatusBar", methods: promise("setStyle", "setBackgroundColor") },
@@ -48,7 +52,8 @@ async function androidMode(page: Page, coldStart?: Record<string, unknown>) {
         const key = `${plugin}.${options.eventName}`;
         if (method === "addListener") {
           listeners[key] = cb;
-          if (cold && key === "OfficeHereFiles.externalOpen") setTimeout(() => cb(cold), 0);
+          if (cold.dosya && key === "OfficeHereFiles.externalOpen") setTimeout(() => cb(cold.dosya), 0);
+          if (cold.kisayol && key === "OfficeHereFiles.newDocument") setTimeout(() => cb({ app: cold.kisayol }), 0);
         }
         return key;
       },
@@ -65,7 +70,7 @@ async function androidMode(page: Page, coldStart?: Record<string, unknown>) {
         return {};
       },
     };
-  }, coldStart);
+  }, { dosya: coldStart, kisayol });
 }
 
 const calls = (page: Page, plugin: string, method: string) =>
@@ -158,6 +163,111 @@ test.describe("Android platformu", () => {
     expect(recent[0]).toMatchObject({ name: "Teklif.docx", app: "belge", uri: "content://belgeler/document/5" });
     // Kalıcı izinler son kullanılanlarla sınırlı tutulur.
     await expect.poll(async () => (await calls(page, "OfficeHereFiles", "releaseUnused")).at(-1)?.options).toEqual({ keep: ["content://belgeler/document/5"] });
+  });
+
+  test("uygulama kısayolu: soğuk açılışta yeni boş tablo; belge açıkken önce sorulur", async ({ page }) => {
+    await androidMode(page, undefined, "tablo");
+    await ready(page);
+    await expect(page.getByRole("heading", { name: "Kitap1.xlsx" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Geri al" })).toBeVisible();
+    // Açık belge varken kısayol: onay sorulur
+    await page.evaluate(() => (window as unknown as { __oh: { listeners: Record<string, (d: unknown) => void> } }).__oh.listeners["OfficeHereFiles.newDocument"]({ app: "sunum" }));
+    const soru = page.getByRole("alertdialog", { name: "Yeni sunu oluşturulsun mu?" });
+    await expect(soru).toContainText('Açık olan "Kitap1.xlsx" kapatılacak');
+    await soru.getByRole("button", { name: "Oluştur" }).click();
+    await expect(page.getByRole("heading", { name: "Sunu1.pptx" })).toBeVisible();
+  });
+
+  test("Yazdır / PDF: yazdırma kökü hazırken sistem yazdırma çağrılır, iş bitince kalkar", async ({ page }) => {
+    const uri = "content://belgeler/document/9";
+    await androidMode(page, { uri, name: "cok-bolumlu.docx", mime: DOCX, size: ORNEK.length, path: "/data/user/0/com.officehere.mobile/cache/oh-in/9.bin", writable: true });
+    await ready(page);
+    await expect(page.getByRole("heading", { name: "cok-bolumlu.docx" })).toBeVisible();
+    await page.evaluate(() => {
+      const oh = (window as unknown as { __oh: { handlers: Record<string, () => unknown>; baski?: unknown } }).__oh;
+      oh.handlers["OfficeHereSystem.print"] = () =>
+        new Promise((r) => {
+          const kok = document.getElementById("bl-print-root");
+          oh.baski = { sayfa: kok?.children.length ?? 0, sinif: document.documentElement.className };
+          setTimeout(() => r({}), 300);
+        });
+    });
+    await page.getByRole("button", { name: "Daha fazla" }).click();
+    await page.getByRole("button", { name: /Yazdır \/ PDF/ }).click();
+    await expect.poll(async () => (await calls(page, "OfficeHereSystem", "print")).length).toBe(1);
+    const p = (await calls(page, "OfficeHereSystem", "print"))[0].options;
+    // cok-bolumlu.docx: Letter (8,5 × 11 inç), ilk sayfa dikey
+    expect(p).toEqual({ name: "cok-bolumlu", width: 8.5, height: 11 });
+    const b = await page.evaluate(() => (window as unknown as { __oh: { baski: { sayfa: number; sinif: string } } }).__oh.baski);
+    expect(b.sayfa).toBeGreaterThan(5);
+    expect(b.sinif).toContain("bl-yazdiriliyor");
+    await expect(page.locator("#bl-print-root")).toHaveCount(0);
+    await expect(page.locator("html")).not.toHaveClass(/bl-yazdiriliyor/);
+  });
+
+  test("Tablo panosu: kopyala yerel panoya yazar, yapıştır yerel panodan okur", async ({ page }) => {
+    await androidMode(page);
+    await ready(page);
+    await page.getByRole("button", { name: "Yeni tablo", exact: true }).click();
+    await expect(page.locator(".m-tablo-grid")).toBeVisible({ timeout: 30_000 });
+    await page.getByLabel("Formül çubuğu", { exact: true }).click();
+    await page.keyboard.type("Çay");
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Escape");
+    const ad = page.getByLabel("Ad Kutusu", { exact: true });
+    await ad.fill("A1");
+    await ad.press("Enter");
+    await page.getByRole("navigation", { name: "Biçimlendirme" }).getByRole("button", { name: "Kopyala" }).click();
+    await expect.poll(async () => (await calls(page, "OfficeHereSystem", "writeClipboard")).length).toBe(1);
+    const w = (await calls(page, "OfficeHereSystem", "writeClipboard"))[0].options as { text: string; html: string };
+    expect(w.text.trimEnd()).toBe("Çay");
+    expect(w.html).toContain("<table");
+    // Başka uygulamadan kopyalanmış tablo
+    await page.evaluate(() => {
+      const oh = (window as unknown as { __oh: { handlers: Record<string, () => unknown> } }).__oh;
+      oh.handlers["OfficeHereSystem.readClipboard"] = () => ({ text: "Ad\tSoyad\nAli\tVeli" });
+    });
+    await ad.fill("C3");
+    await ad.press("Enter");
+    await page.getByRole("navigation", { name: "Biçimlendirme" }).getByRole("button", { name: "Yapıştır" }).click();
+    await ad.fill("D4");
+    await ad.press("Enter");
+    await expect(page.getByRole("status", { name: "Hücre bilgisi" })).toHaveText("D4: Veli");
+  });
+
+  test("kurtarılan belge özgün konuma kaydedilir", async ({ page }) => {
+    const uri = "content://belgeler/document/5";
+    await androidMode(page);
+    await ready(page);
+    await page.evaluate((u) => {
+      const oh = (window as unknown as { __oh: { handlers: Record<string, () => unknown> } }).__oh;
+      oh.handlers["OfficeHereFiles.pickDocument"] = () => ({ uri: u, name: "Teklif.docx", path: "/data/user/0/com.officehere.mobile/cache/oh-in/5.bin", writable: true, persisted: true });
+    }, uri);
+    await page.getByRole("button", { name: "Aç", exact: true }).click();
+    await page.getByRole("button", { name: "Düzenle" }).click();
+    await page.locator(".bl-body .ProseMirror").press("End");
+    await page.keyboard.type(" Ek satır.");
+    await page.evaluate(() => window.dispatchEvent(new Event("pagehide")));
+    await expect.poll(() => page.evaluate(() => new Promise((r) => {
+      const q = indexedDB.open("officehere-mobil", 1);
+      q.onsuccess = () => { const t = q.result.transaction("taslaklar", "readonly").objectStore("taslaklar").count(); t.onsuccess = () => r(t.result); };
+    }))).toBe(1);
+
+    // Uygulama sonlandı ve yeniden açıldı: taslak özgün dosya yeniden okunarak açılır
+    await ready(page);
+    await page.evaluate((u) => {
+      const oh = (window as unknown as { __oh: { handlers: Record<string, (o: Record<string, unknown>) => unknown> } }).__oh;
+      oh.handlers["OfficeHereFiles.readDocument"] = (o) => ({ uri: o.uri ?? u, name: "Teklif.docx", path: "/data/user/0/com.officehere.mobile/cache/oh-in/6.bin", writable: true });
+    }, uri);
+    await page.getByRole("list", { name: "Kurtarılan dosyalar" }).getByRole("button", { name: /^Teklif\.docx Kaydedilmemiş/ }).click();
+    await expect(page.getByRole("heading", { name: "Teklif.docx" })).toBeVisible();
+    await expect(page.locator(".bl-body .ProseMirror")).toContainText("Ek satır.");
+    expect((await calls(page, "OfficeHereFiles", "readDocument"))[0].options).toEqual({ uri });
+    await page.getByRole("button", { name: "Kaydet" }).first().click();
+    await expect(page.getByText('"Teklif.docx" kaydedildi.')).toBeVisible();
+    const writes = await calls(page, "OfficeHereFiles", "writeDocument");
+    expect(writes.at(-1)?.options.uri).toBe(uri);
+    expect(await calls(page, "OfficeHereFiles", "createDocument")).toHaveLength(0);
   });
 
   test("durum çubuğu ve pencere zemini tema ve uygulama rengine uyar @koyu", async ({ page }) => {

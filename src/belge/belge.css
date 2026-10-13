@@ -458,3 +458,70 @@
 .m-belge .bl-footnotes.is-measure {
   position: fixed;
 }
+
+/* Yazdırma ve PDF: masaüstü yazdırma kökünün kuralları (Belge dialogs.css). Sayfa kopyaları
+   ekranda gizlidir; yazdırmada yalnız onlar görünür, koyu tema kuralları kopyalara uygulanmaz.
+   Tablo ve Sunum yazdırmasını etkilememek için kurallar yazdırma süresince (html.bl-yazdiriliyor) geçerlidir. */
+.bl-print-root {
+  display: none;
+}
+
+.bl-print-page {
+  position: relative;
+  overflow: hidden;
+  background: #fff;
+  break-after: page;
+  page-break-after: always;
+}
+
+.bl-print-page:last-child {
+  break-after: auto;
+  page-break-after: auto;
+}
+
+.bl-print-page .bl-page {
+  left: 0;
+}
+
+.bl-print-page .ProseMirror {
+  padding: 0 var(--bl-mr) 0 var(--bl-ml);
+  outline: none;
+}
+
+@media print {
+  html.bl-yazdiriliyor,
+  html.bl-yazdiriliyor body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+    color-scheme: light !important;
+  }
+
+  html.bl-yazdiriliyor body > *:not(.bl-print-root) {
+    display: none !important;
+  }
+
+  html.bl-yazdiriliyor .bl-print-root {
+    display: block !important;
+  }
+
+  .bl-hf {
+    opacity: 1 !important;
+  }
+
+  .bl-hit,
+  .bl-comment {
+    background: none !important;
+    border: 0 !important;
+  }
+
+  .bl-pilcrow {
+    display: none;
+  }
+
+  .bl-print-page,
+  .bl-print-page * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

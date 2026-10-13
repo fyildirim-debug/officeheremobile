@@ -54,6 +54,10 @@ public class OfficeHereFilesPlugin extends Plugin {
 
     private static final String TAG = "OfficeHereFiles";
     static final String EVENT_OPEN = "externalOpen";
+    /** Uygulama kısayolu (res/xml/shortcuts.xml): yeni boş belge/tablo/sunu. */
+    static final String EVENT_NEW = "newDocument";
+    static final String ACTION_NEW = "com.officehere.mobile.action.NEW";
+    static final String EXTRA_APP = "com.officehere.mobile.APP";
     /** İşlenmiş intent işareti (yeniden oluşturulan etkinlikte dosya ikinci kez açılmaz). */
     static final String EXTRA_HANDLED = "com.officehere.mobile.HANDLED";
 
@@ -100,6 +104,16 @@ public class OfficeHereFilesPlugin extends Plugin {
         // "Son kullanılanlar"dan yeniden başlatmada eski intent tekrar gelir; dosya yeniden açılmaz.
         if ((intent.getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0) return;
         String action = intent.getAction();
+        if (ACTION_NEW.equals(action)) {
+            String app = intent.getStringExtra(EXTRA_APP);
+            if (app == null) return;
+            intent.putExtra(EXTRA_HANDLED, true);
+            final JSObject info = new JSObject();
+            info.put("app", app);
+            // Önceki gelen dosyalarla sıra korunur; dinleyici yoksa (soğuk açılış) olay saklanır.
+            io.execute(() -> getBridge().execute(() -> notifyListeners(EVENT_NEW, info, true)));
+            return;
+        }
         Uri uri = null;
         CharSequence text = null;
         if (Intent.ACTION_VIEW.equals(action) || Intent.ACTION_EDIT.equals(action)) {

@@ -54,3 +54,9 @@ export function mimeFor(name: string): string {
 }
 
 export const APP_LABEL: Record<AppKind, string> = { belge: "Belge", tablo: "Tablo", sunum: "Sunum" };
+
+/** Yeni boş belgenin adı (masaüstüyle aynı). */
+export const NEW_NAME: Record<AppKind, string> = { belge: "Belge1.docx", tablo: "Kitap1.xlsx", sunum: "Sunu1.pptx" };
+
+/** Uygulama adı mı (kısayol ve taslak kayıtlarından gelen değer denetimi). */
+export const isAppKind = (v: unknown): v is AppKind => v === "belge" || v === "tablo" || v === "sunum";

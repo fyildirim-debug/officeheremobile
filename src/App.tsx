@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { appFor, getPlatform, type OpenedDoc, type Platform } from "./platform";
+import { appFor, getPlatform, type AppKind, type OpenedDoc, type Platform } from "./platform";
 import { useTheme } from "./shell/theme";
 import { ConfirmHost, ToastHost, confirmDialog, toast } from "./shell/feedback";
 import { Home } from "./home/Home";
@@ -8,6 +8,8 @@ import { Home } from "./home/Home";
 const BelgeScreen = lazy(() => import("./belge/BelgeScreen"));
 const TabloScreen = lazy(() => import("./tablo/TabloScreen"));
 const SunumScreen = lazy(() => import("./sunum/SunumScreen"));
+
+const YENI_ADI: Record<AppKind, string> = { belge: "belge", tablo: "çalışma kitabı", sunum: "sunu" };
 
 export function App() {
   const { dark } = useTheme();
@@ -27,7 +29,8 @@ export function App() {
   const open = useCallback(
     (d: OpenedDoc) => {
       setDoc(d);
-      if (d.data && platform) void platform.addRecent({ name: d.name, app: d.app, uri: d.uri });
+      // Kurtarılan yeni (hiç kaydedilmemiş) belgenin cihazda karşılığı yok: son kullanılanlara girmez.
+      if (d.data && platform && !(d.recovered && !d.uri)) void platform.addRecent({ name: d.name, app: d.app, uri: d.uri });
     },
     [platform],
   );
@@ -37,11 +40,13 @@ export function App() {
     if (!platform) return;
     return platform.onExternalOpen(async (d) => {
       if (docRef.current) {
+        // Uygulama kısayolundan yeni boş belge (data === null) ya da gelen dosya.
+        const yeni = d.data === null;
         const r = await confirmDialog({
-          title: `"${d.name}" açılsın mı?`,
+          title: yeni ? `Yeni ${YENI_ADI[d.app]} oluşturulsun mu?` : `"${d.name}" açılsın mı?`,
           message: `Açık olan "${docRef.current.name}" kapatılacak. Kaydedilmemiş değişiklikler kaybolur.`,
           buttons: [
-            { id: "open", label: "Aç" },
+            { id: "open", label: yeni ? "Oluştur" : "Aç" },
             { id: "cancel", label: "Vazgeç" },
           ],
         });

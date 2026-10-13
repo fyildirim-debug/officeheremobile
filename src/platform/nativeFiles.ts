@@ -38,9 +38,20 @@ export interface OfficeHereFilesPlugin {
   discard(o: { path: string }): Promise<void>;
   releaseUnused(o: { keep: string[] }): Promise<{ released: number }>;
   addListener(event: "externalOpen", fn: (f: NativeFile) => void): Promise<PluginListenerHandle>;
+  /** Uygulama kısayolu (res/xml/shortcuts.xml): yeni boş belge/tablo/sunu. */
+  addListener(event: "newDocument", fn: (e: { app: string }) => void): Promise<PluginListenerHandle>;
+}
+
+/** Yazdırma ve pano eklentisi (android/.../OfficeHereSystemPlugin.java). */
+export interface OfficeHereSystemPlugin {
+  /** WebView'i sistem yazdırma iletişim kutusuyla yazdırır; iş bitince (onFinish) çözülür. Boyut inç. */
+  print(o: { name: string; width?: number; height?: number }): Promise<void>;
+  writeClipboard(o: { text: string; html?: string }): Promise<void>;
+  readClipboard(): Promise<{ text?: string; html?: string; empty?: boolean }>;
 }
 
 export const OfficeHereFiles = registerPlugin<OfficeHereFilesPlugin>("OfficeHereFiles");
+export const OfficeHereSystem = registerPlugin<OfficeHereSystemPlugin>("OfficeHereSystem");
 
 export const isCancelled = (r: NativeFile | Cancelled): r is Cancelled => (r as Cancelled).cancelled === true;
 

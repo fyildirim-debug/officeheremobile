@@ -27,6 +27,7 @@ public class MainActivity extends BridgeActivity {
         // Uygulamaya özel eklentiler köprü kurulmadan önce kaydedilmeli.
         registerPlugin(OfficeHereFilesPlugin.class);
         registerPlugin(OfficeHereWindowPlugin.class);
+        registerPlugin(OfficeHereSystemPlugin.class);
         super.onCreate(savedInstanceState);
 
         // Her Android sürümünde aynı yerleşim: içerik sistem çubuklarının altına uzanır,

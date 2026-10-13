@@ -14,7 +14,7 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 function setup() {
-  let listener: ((f: NativeFile) => void) | null = null;
+  const listeners = new Map<string, (e: never) => void>();
   const temps = new Map<string, ArrayBuffer>();
   let seq = 0;
   const files = {
@@ -24,10 +24,15 @@ function setup() {
     createDocument: vi.fn(),
     discard: vi.fn(async () => {}),
     releaseUnused: vi.fn(async () => ({ released: 0 })),
-    addListener: vi.fn(async (_e: string, fn: (f: NativeFile) => void) => {
-      listener = fn;
+    addListener: vi.fn(async (e: string, fn: (f: never) => void) => {
+      listeners.set(e, fn);
       return { remove: async () => {} };
     }),
+  };
+  const system = {
+    print: vi.fn(async () => {}),
+    writeClipboard: vi.fn(async () => {}),
+    readClipboard: vi.fn(async (): Promise<{ text?: string; html?: string; empty?: boolean }> => ({ empty: true })),
   };
   const deps = {
     files: files as unknown as NativeDeps["files"],
@@ -37,6 +42,7 @@ function setup() {
     share: vi.fn(async () => ({})),
     notify: vi.fn(),
     home: () => (document.documentElement.getAttribute("data-app") ?? "baslangic") === "baslangic",
+    system,
   } satisfies NativeDeps;
   const p = createNativePlatform(deps);
   p.init();
@@ -46,7 +52,9 @@ function setup() {
     temps.set(path, enc(body));
     return { uri: `content://belgeler/document/${seq}`, writable: true, path, ...f };
   };
-  const emit = (f: NativeFile) => listener!(f);
+  const emit = (f: NativeFile) => (listeners.get("externalOpen") as (f: NativeFile) => void)(f);
+  /** Uygulama kısayolu ("Yeni belge" vb.). */
+  const shortcut = (app: string) => (listeners.get("newDocument") as (e: { app: string }) => void)({ app });
   /** App'in açma davranışı: son kullanılanlara ekler, ekran açılınca data-app değişir. */
   const openInApp = async (d: OpenedDoc) => {
     await p.addRecent({ name: d.name, app: d.app, uri: d.uri });
@@ -57,7 +65,7 @@ function setup() {
     document.documentElement.setAttribute("data-app", "baslangic");
     await tick();
   };
-  return { p, files, deps, file, emit, openInApp, goHome };
+  return { p, files, deps, system, file, emit, shortcut, openInApp, goHome };
 }
 
 const bytes = new Uint8Array([1, 2, 3]);
@@ -249,6 +257,56 @@ describe("onExternalOpen", () => {
   });
 });
 
+describe("uygulama kısayolları", () => {
+  it("\"Yeni belge/tablo/sunu\" boş belge olarak verilir; soğuk açılışta dinleyiciyi bekler", async () => {
+    const t = setup();
+    t.shortcut("tablo");
+    await tick();
+    const got: OpenedDoc[] = [];
+    t.p.onExternalOpen((d) => got.push(d));
+    t.shortcut("belge");
+    t.shortcut("sunum");
+    t.shortcut("bilinmeyen");
+    await vi.waitFor(() => expect(got).toHaveLength(3));
+    await tick();
+    expect(got).toEqual([
+      { name: "Kitap1.xlsx", data: null, app: "tablo" },
+      { name: "Belge1.docx", data: null, app: "belge" },
+      { name: "Sunu1.pptx", data: null, app: "sunum" },
+    ]);
+  });
+
+  it("gelen dosyayla aynı sırada verilir", async () => {
+    const t = setup();
+    const got: string[] = [];
+    t.p.onExternalOpen((d) => got.push(d.name));
+    t.emit(t.file({ name: "rapor.docx" }));
+    t.shortcut("sunum");
+    await vi.waitFor(() => expect(got).toEqual(["rapor.docx", "Sunu1.pptx"]));
+  });
+});
+
+describe("yazdırma ve pano", () => {
+  it("yazdırma işi adı ve sayfa boyutuyla eklentiye gider; hata anlaşılır iletiyle", async () => {
+    const t = setup();
+    await t.p.print({ name: "Rapor", page: { width: 8.27, height: 11.69 } });
+    expect(t.system.print).toHaveBeenCalledWith({ name: "Rapor", width: 8.27, height: 11.69 });
+    t.system.print.mockRejectedValueOnce({ message: "Yazdırma bu cihazda kullanılamıyor." });
+    await expect(t.p.print({ name: "x" })).rejects.toThrow("kullanılamıyor");
+  });
+
+  it("pano: yazma metin ve HTML taşır; boş ya da okunamayan pano null", async () => {
+    const t = setup();
+    await t.p.writeClipboard({ text: "a\tb", html: "<table></table>" });
+    expect(t.system.writeClipboard).toHaveBeenCalledWith({ text: "a\tb", html: "<table></table>" });
+    expect(await t.p.readClipboard()).toBeNull();
+    t.system.readClipboard.mockResolvedValueOnce({ text: "1\t2", html: "" });
+    expect(await t.p.readClipboard()).toEqual({ text: "1\t2", html: undefined });
+    t.system.readClipboard.mockRejectedValueOnce(new Error("yok"));
+    expect(await t.p.readClipboard()).toBeNull();
+  });
+});
+
 describe("son kullanılanlar", () => {
   it("sabitlenenler başta, aynı adres tek kayıt, kaldırınca izin bırakılır", async () => {
     const t = setup();
@@ -366,6 +424,18 @@ describe("AndroidManifest", () => {
         expect(f).toContain(`android:pathPattern=".*\\\\.${ext}"`);
       }
     }
+  });
+
+  it("uygulama kısayolları: üç kısayol aynı etkinliğe ACTION_NEW ve uygulama adıyla gider", () => {
+    expect(xml).toMatch(/<meta-data\s+android:name="android.app.shortcuts"\s+android:resource="@xml\/shortcuts"/);
+    const sc = readFileSync(resolve("android/app/src/main/res/xml/shortcuts.xml"), "utf8");
+    const apps = [...sc.matchAll(/android:name="com.officehere.mobile.APP" android:value="(\w+)"/g)].map((m) => m[1]);
+    expect(apps).toEqual(["belge", "tablo", "sunum"]);
+    expect(sc.match(/android:action="com.officehere.mobile.action.NEW"/g)).toHaveLength(3);
+    expect(sc.match(/android:targetClass="com.officehere.mobile.MainActivity"/g)).toHaveLength(3);
+    const java = readFileSync(resolve("android/app/src/main/java/com/officehere/mobile/OfficeHereFilesPlugin.java"), "utf8");
+    expect(java).toContain('ACTION_NEW = "com.officehere.mobile.action.NEW"');
+    expect(java).toContain('EXTRA_APP = "com.officehere.mobile.APP"');
   });
 
   it("izin istenmez; etkinlik dışa açık, klavyede yeniden boyutlanır", () => {

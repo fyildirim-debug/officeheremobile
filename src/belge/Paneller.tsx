@@ -9,6 +9,7 @@ import {
   FontIncrease24Regular,
   Info24Regular,
   Phone24Regular,
+  Print24Regular,
   SaveCopy24Regular,
   Search24Regular,
   Share24Regular,
@@ -28,11 +29,13 @@ import {
   ZoomIn24Regular,
   ZoomOut24Regular,
 } from "@fluentui/react-icons";
-import { FONT_LIST, FONT_SIZES, HIGHLIGHT_COLORS, STANDARD_COLORS, fontStack, themeShades, type ThemePalette } from "@officehere/core";
+import { FONT_SIZES, HIGHLIGHT_COLORS, STANDARD_COLORS, fontStack, themeShades, type ThemePalette } from "@officehere/core";
 import type { FormatState } from "@belge/editor/formatState";
 import { FORMATS, type FormatId } from "@belge/io";
 import { previewStyle, type StyleDef } from "@belge/model/styles";
 import { Sheet } from "../shell/Toolbar";
+import { YAZDIR_ETIKETI, YAZDIR_IPUCU } from "../shell/yazdir";
+import { MOBIL_YAZI_TIPLERI, yaziTipiListesi } from "../shell/yaziTipleri";
 import { KAYIT_BICIMLERI } from "./kayit";
 import type { Hiza } from "./komutlar";
 
@@ -42,8 +45,7 @@ export type PanelId = "yazi" | "renk" | "vurgu" | "paragraf" | "stil" | "gorunum
 export const BICIM_PANELLERI: PanelId[] = ["yazi", "renk", "vurgu", "paragraf", "stil"];
 
 /** Masaüstü yazı tipi listesinden mobilde sunulanlar. */
-const YAZI_TIPLERI = new Set(["Aptos", "Arial", "Calibri", "Cambria", "Comic Sans MS", "Courier New", "Garamond", "Georgia", "Segoe UI", "Tahoma", "Times New Roman", "Trebuchet MS", "Verdana"]);
-export const MOBIL_YAZI_TIPLERI = FONT_LIST.filter((f) => YAZI_TIPLERI.has(f));
+export { MOBIL_YAZI_TIPLERI };
 
 /** Masaüstü stil galerisinden paragraf stilleri. */
 export const MOBIL_STILLER = ["Normal", "NoSpacing", "Title", "Subtitle", "Heading1", "Heading2", "Heading3", "Quote", "IntenseQuote", "ListParagraph"];
@@ -74,7 +76,7 @@ export interface YaziTipiProps {
 }
 
 export function YaziTipiIcerik({ fmt, onFont, onSize, onStep, onMark, onClear }: YaziTipiProps) {
-  const fonts = MOBIL_YAZI_TIPLERI.includes(fmt.font) ? MOBIL_YAZI_TIPLERI : [fmt.font, ...MOBIL_YAZI_TIPLERI];
+  const fonts = yaziTipiListesi(fmt.font);
   return (
     <>
       <div className="m-belge-satir">
@@ -351,7 +353,7 @@ export function FarkliKaydetIcerik({ ad, onSec }: { ad: string; onSec: (f: Forma
   );
 }
 
-export function MenuIcerik({ onBul, onGorunum, onPaylas, onFarkli, onBilgi }: { onBul: () => void; onGorunum: () => void; onPaylas: () => void; onFarkli: () => void; onBilgi: () => void }) {
+export function MenuIcerik({ onBul, onGorunum, onPaylas, onYazdir, onFarkli, onBilgi }: { onBul: () => void; onGorunum: () => void; onPaylas: () => void; onYazdir: () => void; onFarkli: () => void; onBilgi: () => void }) {
   return (
     <div className="m-list">
       <button type="button" className="m-list-item" onClick={onBul}>
@@ -365,6 +367,13 @@ export function MenuIcerik({ onBul, onGorunum, onPaylas, onFarkli, onBilgi }: { 
       <button type="button" className="m-list-item" onClick={onPaylas}>
         <Share24Regular />
         <span>Paylaş</span>
+      </button>
+      <button type="button" className="m-list-item" onClick={onYazdir}>
+        <Print24Regular />
+        <span>
+          {YAZDIR_ETIKETI}
+          <small className="m-belge-alt">{YAZDIR_IPUCU}</small>
+        </span>
       </button>
       <button type="button" className="m-list-item" onClick={onFarkli}>
         <SaveCopy24Regular />

@@ -1,14 +1,17 @@
 // Başlangıç ekranı: masaüstü Başlangıç penceresinin mobil karşılığı (yeni, aç, son kullanılanlar, ayarlar).
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FolderOpen24Regular, MoreVertical24Regular, Pin16Filled, Search24Regular, Settings24Regular } from "@fluentui/react-icons";
+import { ChevronRight20Regular, Delete24Regular, DocumentSync24Regular, FolderOpen24Regular, MoreVertical24Regular, Pin16Filled, Search24Regular, Settings24Regular } from "@fluentui/react-icons";
 import { AppLogo, DeveloperCredit } from "@officehere/ui";
 import { AppBar, IconButton } from "../shell/AppBar";
-import { acceptFor, appFor, APP_LABEL, type AppKind, type OpenedDoc, type Platform, type RecentFile } from "../platform";
+import { acceptFor, appFor, APP_LABEL, NEW_NAME, type AppKind, type OpenedDoc, type Platform, type RecentFile } from "../platform";
+import { taslakAl, taslakDinle, taslaklar, taslakSil, type TaslakOzet } from "../platform/taslak";
 import { useBackHandler } from "../shell/back";
-import { toast } from "../shell/feedback";
+import { confirmDialog, toast } from "../shell/feedback";
 import { Settings } from "./Settings";
 import { RecentActions } from "./RecentActions";
 import { greeting, recentWhen } from "./util";
+import { SABLONLAR, sablondanYeni } from "./sablonlar";
+import { Sheet } from "../shell/Toolbar";
 import "./home.css";
 
 interface Props {
@@ -18,9 +21,9 @@ interface Props {
 }
 
 export const NEW_DOCS: { app: AppKind; label: string; name: string; aria: string; shape: "portrait" | "square" | "landscape" }[] = [
-  { app: "belge", label: "Boş belge", name: "Belge1.docx", aria: "Yeni belge", shape: "portrait" },
-  { app: "tablo", label: "Boş çalışma kitabı", name: "Kitap1.xlsx", aria: "Yeni tablo", shape: "square" },
-  { app: "sunum", label: "Boş sunu", name: "Sunu1.pptx", aria: "Yeni sunu", shape: "landscape" },
+  { app: "belge", label: "Boş belge", name: NEW_NAME.belge, aria: "Yeni belge", shape: "portrait" },
+  { app: "tablo", label: "Boş çalışma kitabı", name: NEW_NAME.tablo, aria: "Yeni tablo", shape: "square" },
+  { app: "sunum", label: "Boş sunu", name: NEW_NAME.sunum, aria: "Yeni sunu", shape: "landscape" },
 ];
 
 /** Boş şablon önizlemesi (masaüstü Başlangıç ile aynı çizim; zemin temaya uyar). */
@@ -73,16 +76,25 @@ export function Home({ platform, onOpen, onError }: Props) {
   const [searching, setSearching] = useState(false);
   const [settings, setSettings] = useState(false);
   const [menuFor, setMenuFor] = useState<RecentFile | null>(null);
+  const [sablonlar, setSablonlar] = useState(false);
+
+  const [kurtarilan, setKurtarilan] = useState<TaslakOzet[]>([]);
 
   const reload = useCallback(() => {
     void platform.recent().then(setRecent, () => setRecent([]));
+    void taslaklar().then(setKurtarilan, () => setKurtarilan([]));
   }, [platform]);
 
   useEffect(() => {
     reload();
     const onVisible = () => document.visibilityState === "visible" && reload();
     document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
+    // Kapanan ekranın taslağı silinince liste yenilenir.
+    const off = taslakDinle(() => void taslaklar().then(setKurtarilan, () => setKurtarilan([])));
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      off();
+    };
   }, [reload]);
 
   // Geri: önce arama kapanır.
@@ -90,6 +102,7 @@ export function Home({ platform, onOpen, onError }: Props) {
     setSearching(false);
     setQuery("");
   }, searching);
+  useBackHandler(() => setSablonlar(false), sablonlar);
 
   const pick = async () => {
     try {
@@ -117,6 +130,37 @@ export function Home({ platform, onOpen, onError }: Props) {
     } catch (e) {
       onError((e as Error).message);
     }
+  };
+
+  /** Otomatik kurtarılan taslağı açar; özgün dosyaya erişilebiliyorsa kaydetme oraya yapılır. */
+  const kurtar = async (o: TaslakOzet) => {
+    const t = await taslakAl(o.id).catch(() => null);
+    if (!t) {
+      toast("Taslak bulunamadı.", "error");
+      reload();
+      return;
+    }
+    let uri = t.uri;
+    if (uri && platform.native) {
+      // Dosya yeniden okunur: izin sürüyorsa oturumun kayıt hedefi olur; yoksa kaydederken konum sorulur.
+      const d = await platform.openRecent({ name: t.name, app: t.app, uri, openedAt: 0 }).catch(() => null);
+      if (!d) uri = undefined;
+    }
+    onOpen({ name: t.name, data: t.data, app: t.app, uri, recovered: { id: t.id, dataName: t.dataName, savedAt: t.savedAt, ek: t.ek } });
+  };
+
+  const taslagiSil = async (t: TaslakOzet) => {
+    const r = await confirmDialog({
+      title: "Taslak silinsin mi?",
+      message: `"${t.name}" dosyasının kaydedilmemiş değişiklikleri kalıcı olarak silinecek.`,
+      buttons: [
+        { id: "sil", label: "Sil", danger: true },
+        { id: "vazgec", label: "Vazgeç" },
+      ],
+    });
+    if (r !== "sil") return;
+    await taslakSil(t.id).catch(() => {});
+    reload();
   };
 
   const shown = useMemo(() => {
@@ -150,8 +194,44 @@ export function Home({ platform, onOpen, onError }: Props) {
       <main className="m-content m-home-content">
         <h2 className="m-home-greeting">{greeting()}</h2>
 
+        {kurtarilan.length > 0 && (
+          <section className="m-home-section m-home-kurtar" aria-labelledby="m-home-kurtar">
+            <h3 id="m-home-kurtar">
+              <DocumentSync24Regular aria-hidden />
+              Kurtarılan dosyalar
+            </h3>
+            <p className="m-home-kurtar-bilgi">Kaydedilmeden kapanan dosyaların son hâli. Açıp kaydedin ya da silin.</p>
+            <ul className="m-home-recent" aria-label="Kurtarılan dosyalar">
+              {kurtarilan.map((t) => (
+                <li key={t.id} className="m-home-item">
+                  <button type="button" className="m-home-item-main" onClick={() => void kurtar(t)}>
+                    <span className="m-home-item-icon">
+                      <AppLogo app={t.app} size={32} />
+                    </span>
+                    <span className="m-home-item-text">
+                      <span className="m-home-item-name">
+                        <span>{t.name}</span>
+                      </span>
+                      <span className="m-home-item-meta">Kaydedilmemiş değişiklikler · {recentWhen(t.savedAt)}</span>
+                    </span>
+                  </button>
+                  <IconButton label={`${t.name} taslağını sil`} onClick={() => void taslagiSil(t)}>
+                    <Delete24Regular />
+                  </IconButton>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         <section className="m-home-section" aria-labelledby="m-home-new">
-          <h3 id="m-home-new">Yeni</h3>
+          <div className="m-home-section-head">
+            <h3 id="m-home-new">Yeni</h3>
+            <button type="button" className="m-home-more" onClick={() => setSablonlar(true)}>
+              Şablonlar
+              <ChevronRight20Regular aria-hidden />
+            </button>
+          </div>
           <div className="m-home-new">
             {NEW_DOCS.map((n) => (
               <button key={n.app} type="button" className={`m-home-tile is-${n.shape}`} data-app={n.app} aria-label={n.aria} onClick={() => onOpen({ name: n.name, data: null, app: n.app })}>
@@ -232,6 +312,30 @@ export function Home({ platform, onOpen, onError }: Props) {
       </main>
 
       <Settings open={settings} onClose={() => setSettings(false)} />
+      <Sheet open={sablonlar} title="Şablondan yeni" onClose={() => setSablonlar(false)}>
+        {(["belge", "tablo", "sunum"] as AppKind[]).map((app) => (
+          <div key={app} className="m-home-sablon-grup">
+            <h3 className="m-home-sablon-baslik">{APP_LABEL[app]}</h3>
+            <ul className="m-list m-home-sablonlar" aria-label={`${APP_LABEL[app]} şablonları`}>
+              {SABLONLAR.filter((t) => t.app === app).map((t) => (
+                <li key={t.id}>
+                  <button
+                    type="button"
+                    className="m-list-item"
+                    onClick={() => {
+                      setSablonlar(false);
+                      onOpen(sablondanYeni(t));
+                    }}
+                  >
+                    <AppLogo app={app} size={28} />
+                    <span>{t.label}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </Sheet>
       <RecentActions
         file={menuFor}
         onClose={() => setMenuFor(null)}

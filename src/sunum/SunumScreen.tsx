@@ -17,6 +17,7 @@ import {
   Grid24Regular,
   MoreVertical24Regular,
   Play24Regular,
+  Print24Regular,
   Save24Regular,
   SaveCopy24Regular,
   Share24Regular,
@@ -29,11 +30,16 @@ import { applyRun, common, setParaProps, textInfo } from "@sunum/state/textActio
 import type { Color } from "@sunum/model/types";
 import "@sunum/styles/slide.css";
 import "@sunum/styles/show.css";
+import "@sunum/styles/print.css";
+import { PrintRoot } from "@sunum/app/exporting";
 import "./sunum.css";
 import { AppBar } from "../shell/AppBar";
 import { Sheet } from "../shell/Toolbar";
 import { confirmDialog, toast } from "../shell/feedback";
 import { useBackHandler } from "../shell/back";
+import { inc, yazdirKisayolu, yazdirmaAc, YAZDIR_ETIKETI } from "../shell/yazdir";
+import { useTaslak } from "../shell/useTaslak";
+import { recentWhen } from "../home/util";
 import { APP_LABEL, baseOf, extOf, type DocScreenProps } from "../platform";
 import { kayitAdi, kayitBicimi, slaytBoyutu, sunuAc, sunuBaytlari, sunumMime, type AcilanSunu } from "./dosya";
 import { koyuSunu, resimDinle } from "./koyu";
@@ -52,7 +58,13 @@ export default function SunumScreen(props: DocScreenProps) {
   useEffect(() => {
     let iptal = false;
     sunuAc(doc)
-      .then((acilan) => !iptal && setYuk({ durum: "hazir", oturum: yeniOturum(acilan.pres, baseOf(acilan.ad)), acilan }))
+      .then((acilan) => {
+        if (iptal) return;
+        const oturum = yeniOturum(acilan.pres, baseOf(acilan.ad));
+        // Kurtarılan taslak kaydedilene dek "Kaydedilmedi".
+        if (acilan.kurtarildi) oturum.store.set({ dirty: true });
+        setYuk({ durum: "hazir", oturum, acilan });
+      })
       .catch((e: unknown) => !iptal && setYuk({ durum: "hata", mesaj: e instanceof Error ? e.message : String(e) }));
     return () => {
       iptal = true;
@@ -141,15 +153,30 @@ function Sunum({ doc, platform, onClose, dark, oturum, acilan }: SunumProps) {
   const [notAcik, setNotAcik] = useState(notTercihi);
   const [teklif, setTeklif] = useState(!!acilan.gosteri);
   const [kaydediliyor, setKaydediliyor] = useState(false);
+  const [yazdiriliyor, setYazdiriliyor] = useState(false);
   const genis = useMedya("(min-width: 600px)");
   const uyarildi = useRef(false);
 
   const bildirildi = useRef(false);
   useEffect(() => {
-    if (!acilan.bildirim || bildirildi.current) return;
+    if (bildirildi.current) return;
+    if (doc.recovered) toast(`Kurtarılan taslak (${recentWhen(doc.recovered.savedAt)}): kaydedilmemiş değişiklikler geri getirildi.`);
+    else if (acilan.bildirim) toast(acilan.bildirim);
     bildirildi.current = true;
-    toast(acilan.bildirim);
-  }, [acilan]);
+  }, [acilan, doc.recovered]);
+
+  // Otomatik kurtarma: kaydedilmemiş değişiklikler taslak olarak saklanır (tam doğrulukla .pptx).
+  const uriRef = useRef(doc.uri);
+  const dosyaRef = useRef(dosya);
+  dosyaRef.current = dosya;
+  useTaslak({
+    app: "sunum",
+    kirli: s.dirty,
+    surum: s.pres,
+    id: doc.recovered?.id,
+    bilgi: () => ({ name: dosyaRef.current.ad, uri: uriRef.current, ek: { bicim: dosyaRef.current.bicim } }),
+    kodla: async () => ({ data: await sunuBaytlari(a.s.pres, "pptx", "taslak.pptx"), dataName: "taslak.pptx" }),
+  });
 
   // Açık resim zeminlerin ölçümü bitince koyu görünüm yeniden hesaplanır.
   const [resimSurum, setResimSurum] = useState(0);
@@ -192,6 +219,7 @@ function Sunum({ doc, platform, onClose, dark, oturum, acilan }: SunumProps) {
       const saved = await platform.saveFile(ad, bytes, sunumMime(ad), as ? { saveAs: true } : undefined);
       // Kullanıcının seçtiği gerçek ad başlıkta ve sonraki kayıtlarda kullanılır; biçim yazılan biçimdir.
       const yeniAd = saved.name || ad;
+      if (saved.uri) uriRef.current = saved.uri;
       setDosya({ ad: yeniAd, bicim, kayitli: true });
       // Kayıt sürerken yapılan değişiklik kirli kalır.
       store.set({ dirty: a.s.pres !== pres0, fileName: baseOf(yeniAd) });
@@ -231,6 +259,28 @@ function Sunum({ doc, platform, onClose, dark, oturum, acilan }: SunumProps) {
     });
     if (r === "kaydetme" || (r === "kaydet" && (await kaydet()))) onClose();
   };
+
+  /** Yazdır / PDF: masaüstü yazdırma kökü (her gösterilen slayt bir sayfa, özgün renklerle). */
+  // Yazdırma kökü hazır olunca iletişim kutusu bir kez açılır (StrictMode'da kök etkisi iki kez çalışır).
+  const basildi = useRef(false);
+  const yazdir = () => {
+    if (!n || yazdiriliyor) return;
+    a.stopEditing();
+    setSayfa(null);
+    basildi.current = false;
+    setYazdiriliyor(true);
+  };
+  const yazdirRef = useRef(yazdir);
+  yazdirRef.current = yazdir;
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => {
+      if (!yazdirKisayolu(e)) return;
+      e.preventDefault();
+      yazdirRef.current();
+    };
+    window.addEventListener("keydown", on);
+    return () => window.removeEventListener("keydown", on);
+  }, []);
 
   // Donanım klavyesi (tablet): ok tuşlarıyla slayt değiştirme (metin/not yazılmıyorken).
   useEffect(() => {
@@ -482,6 +532,7 @@ function Sunum({ doc, platform, onClose, dark, oturum, acilan }: SunumProps) {
             }}
           />
           <MenuSatiri icon={<SaveCopy24Regular />} label="Farklı kaydet" onClick={() => setSayfa("farkli")} />
+          <MenuSatiri icon={<Print24Regular />} label={YAZDIR_ETIKETI} disabled={!n || pres.slides.every((x) => x.hidden)} onClick={yazdir} />
         </div>
         <p className="m-sunum-bilgi">
           <b>Slayt boyutu:</b> {slaytBoyutu(pres)}
@@ -519,6 +570,17 @@ function Sunum({ doc, platform, onClose, dark, oturum, acilan }: SunumProps) {
           }}
           onMenu={slaytMenusu}
           onClose={() => setIzgara(false)}
+        />
+      )}
+      {yazdiriliyor && (
+        <PrintRoot
+          pres={pres}
+          onDone={() => setYazdiriliyor(false)}
+          onReady={async () => {
+            if (basildi.current) return;
+            basildi.current = true;
+            await yazdirmaAc(platform, { name: baseOf(dosya.ad), page: { width: inc(pres.width), height: inc(pres.height) } });
+          }}
         />
       )}
       {gosteri && (

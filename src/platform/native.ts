@@ -3,19 +3,21 @@
 import { Capacitor } from "@capacitor/core";
 import { Directory, Filesystem } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
-import { appFor, mimeFor } from "./formats";
+import { appFor, isAppKind, mimeFor, NEW_NAME } from "./formats";
 import {
   errorCode,
   isAccessError,
   isCancelled,
   mimesForAccept,
   OfficeHereFiles,
+  OfficeHereSystem,
   resolveName,
   safeFileName,
   toBase64,
   type Cancelled,
   type NativeFile,
   type OfficeHereFilesPlugin,
+  type OfficeHereSystemPlugin,
 } from "./nativeFiles";
 import { startNativeChrome } from "./nativeChrome";
 import type { OpenedDoc, Platform, RecentFile } from "./types";
@@ -96,6 +98,8 @@ export interface NativeDeps {
   notify(message: string): void;
   /** Başlangıç ekranında mı (açık belge yok). */
   home(): boolean;
+  /** Yazdırma ve pano (verilmezse OfficeHereSystem eklentisi). */
+  system?: OfficeHereSystemPlugin;
 }
 
 /** Köprüden tek seferde geçen parça (base64 öncesi); bellek tepe değeri sınırlı kalsın. */
@@ -103,6 +107,7 @@ const CHUNK = 3 * 1024 * 1024;
 
 export const defaultDeps: NativeDeps = {
   files: OfficeHereFiles,
+  system: OfficeHereSystem,
   async readTemp(path) {
     const res = await fetch(Capacitor.convertFileSrc(path));
     if (!res.ok) throw new Error(`Dosya okunamadı (${res.status}).`);
@@ -214,13 +219,25 @@ export function createNativePlatform(deps: NativeDeps = defaultDeps): NativePlat
     });
   }
 
+  /** Uygulama kısayolu: yeni boş belge (gelen dosyalarla aynı sırada verilir). */
+  function onNew(e: { app: string }) {
+    chain = chain.then(() => {
+      if (!isAppKind(e?.app)) return;
+      ready.push({ doc: { name: NEW_NAME[e.app], data: null, app: e.app } });
+      deliver();
+    });
+  }
+
   function listen() {
     if (listening) return;
     listening = true;
     deps.files.addListener("externalOpen", onIncoming).catch(() => {
       listening = false;
     });
+    deps.files.addListener("newDocument", onNew).catch(() => {});
   }
+
+  const system = deps.system ?? OfficeHereSystem;
 
   /** Kalıcı izinler son kullanılanlar ve açık belgeyle sınırlı kalır (sistem sınırı dolmasın). */
   function prune() {
@@ -341,6 +358,28 @@ export function createNativePlatform(deps: NativeDeps = defaultDeps): NativePlat
       const doc = await readDoc(nf);
       if (deps.home()) targets.activate(doc.name, doc.uri);
       return doc;
+    },
+
+    async print(job) {
+      try {
+        await system.print({ name: job.name, width: job.page?.width, height: job.page?.height });
+      } catch (e) {
+        throw toError(e, "Yazdırılamadı.");
+      }
+    },
+
+    async writeClipboard(c) {
+      await system.writeClipboard({ text: c.text, html: c.html }).catch(() => {});
+    },
+
+    async readClipboard() {
+      try {
+        const r = await system.readClipboard();
+        if (r.empty || (!r.text && !r.html)) return null;
+        return { text: r.text ?? "", html: r.html || undefined };
+      } catch {
+        return null;
+      }
     },
 
     onExternalOpen(cb) {

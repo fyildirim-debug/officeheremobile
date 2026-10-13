@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Uygulama kısayolu: yeni belge (Belge mavisi zeminde sayfa). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path android:fillColor="#1f5fbf" android:pathData="M24,2a22,22 0 1,1 0,44a22,22 0 1,1 0,-44z" />
+    <path android:fillColor="#ffffff" android:pathData="M16,11h12l6,6v18a2,2 0 0 1 -2,2h-16a2,2 0 0 1 -2,-2v-22a2,2 0 0 1 2,-2z" />
+    <path android:fillColor="#1f5fbf" android:pathData="M18,21h12v2h-12zM18,25h12v2h-12zM18,29h8v2h-8z" />
+</vector>

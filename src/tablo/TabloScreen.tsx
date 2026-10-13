@@ -5,7 +5,11 @@ import {
   ArrowRedo24Regular,
   ArrowUndo24Regular,
   Autosum24Regular,
+  BorderAll24Regular,
   Checkmark24Regular,
+  ClipboardPaste24Regular,
+  Copy24Regular,
+  Cut24Regular,
   Delete24Regular,
   Edit24Regular,
   Eraser24Regular,
@@ -13,12 +17,16 @@ import {
   MoreVertical24Regular,
   NumberSymbol24Regular,
   PaintBucket24Regular,
+  Print24Regular,
   Rename24Regular,
   Save24Regular,
   SaveCopy24Regular,
   Search24Regular,
   Share24Regular,
   TableAdd24Regular,
+  TableCellsMerge24Regular,
+  TextFont24Regular,
+  TextSortAscending24Regular,
   TableFreezeColumnAndRow24Regular,
   TableFreezeRow24Regular,
   TableInsertRow24Regular,
@@ -36,13 +44,16 @@ import {
   ZoomOut24Regular,
   ErrorCircle24Regular,
 } from "@fluentui/react-icons";
-import type { FnDef } from "@officehere/formula";
+import { formatRange, type FnDef } from "@officehere/formula";
 import { Controller } from "@tablo/controller";
 import { WorkbookModel } from "@tablo/model/workbook";
+import { buildTemplate } from "@tablo/templates";
 import * as E from "@tablo/actions/edit";
 import { activeStyle, changeDecimals, toggle, toggleUnderline, toggleWrap } from "@tablo/actions/format";
 import { freeze, isFrozen } from "@tablo/actions/view";
-import { setFileFormat } from "@tablo/app/fileFormat";
+import { fileFormatOf, setFileFormat, type FileFormatState } from "@tablo/app/fileFormat";
+import { preparePrint } from "@tablo/io/print";
+import { buildPrintHtml, paperBox, type PrintScope } from "@tablo/io/printPages";
 import "@tablo/styles/tablo.css";
 import "@tablo/styles/objects.css";
 import "@tablo/styles/panes.css";
@@ -50,16 +61,21 @@ import { AppBar, IconButton } from "../shell/AppBar";
 import { BottomToolbar, Sheet, ToolButton } from "../shell/Toolbar";
 import { confirmDialog, toast } from "../shell/feedback";
 import { useBackHandler } from "../shell/back";
-import { mimeFor, type DocScreenProps } from "../platform";
+import { baseOf, mimeFor, type DocScreenProps } from "../platform";
+import { inc, yazdirKisayolu, yazdirmaAc, YAZDIR_ETIKETI, YAZDIR_IPUCU } from "../shell/yazdir";
+import { useTaslak } from "../shell/useTaslak";
+import { recentWhen } from "../home/util";
 import { GridApi, MobileGrid } from "./MobileGrid";
 import { FormulaBar } from "./FormulaBar";
 import { AlignPanel, ColorPanel, FindBar, FunctionPanel, MenuItem, NumberFormatPanel, RenamePanel, RowsColsPanel, SheetStrip } from "./panels";
+import { birlesik, BirlestirSecenekleri, birlestirVeOrtala, FiltrePanel, filtreBul, KenarlikPanel, SiralaFiltrePanel, sutunAdi, YaziTipiPanel } from "./hucre";
+import { kopyala, panoyuBirak, yapistir } from "./pano";
 import { bookFormat, formatQuestion, markSaved, needsFormatQuestion, openWorkbook, planSave, workbookBytes, type SaveFormat } from "./fileio";
 import { statusText } from "./stats";
 import { useVisualViewport } from "./viewport";
 import "./tablo.css";
 
-type Panel = null | "more" | "saveas" | "fx" | "color" | "fill" | "align" | "numfmt" | "rows" | { sheet: number } | { rename: number };
+type Panel = null | "more" | "saveas" | "print" | "fx" | "color" | "fill" | "align" | "numfmt" | "rows" | "font" | "border" | "sort" | { filter: number } | { sheet: number } | { rename: number };
 
 type LoadState = { kind: "loading" } | { kind: "ready" } | { kind: "error"; message: string };
 
@@ -88,9 +104,23 @@ export default function TabloScreen({ doc, platform, onClose, dark }: DocScreenP
     (async () => {
       try {
         if (!doc.data) {
-          const wb = new WorkbookModel();
+          // Yeni boş kitap ya da masaüstü şablonundan (Aylık Bütçe, Fatura…) yeni kitap
+          const wb = doc.template ? buildTemplate(doc.template) : new WorkbookModel();
           setFileFormat(wb, { format: "xlsx" });
           ctl.load(wb, doc.name, null);
+        } else if (doc.recovered) {
+          // Kurtarılan taslak .xlsx olarak kodlanmıştır; ad ve dosya biçimi özgün belgenin.
+          const opened = await openWorkbook(doc.recovered.dataName, doc.data);
+          if (!alive) return;
+          const wb = opened.wb;
+          const ek = doc.recovered.ek as FileFormatState | undefined;
+          setFileFormat(wb, ek?.format ? ek : { format: "xlsx" });
+          if (wb.active?.hidden) wb.activeIndex = Math.max(0, wb.sheets.findIndex((s) => !s.hidden));
+          ctl.load(wb, doc.name, null);
+          ctl.infoBar = null;
+          ctl.dirty = true;
+          setName(doc.name);
+          toast(`Kurtarılan taslak (${recentWhen(doc.recovered.savedAt)}): kaydedilmemiş değişiklikler geri getirildi.`, "info");
         } else {
           const opened = await openWorkbook(doc.name, doc.data);
           if (!alive) return;
@@ -165,6 +195,7 @@ export default function TabloScreen({ doc, platform, onClose, dark }: DocScreenP
       // Farklı kaydet: aynı ad olsa da konum sorulur
       const saved = await platform.saveFile(plan.name, bytes, mimeFor(plan.name), as ? { saveAs: true } : undefined);
       const finalName = saved.name || plan.name;
+      if (saved.uri) uriRef.current = saved.uri;
       markSaved(ctl.wb, plan);
       ctl.dirty = false;
       setName(finalName);
@@ -183,6 +214,18 @@ export default function TabloScreen({ doc, platform, onClose, dark }: DocScreenP
     }
   };
 
+  // Otomatik kurtarma: kaydedilmemiş değişiklikler taslak olarak saklanır (tam doğrulukla .xlsx).
+  const uriRef = useRef(doc.uri);
+  useTaslak({
+    app: "tablo",
+    kirli: load.kind === "ready" && ctl.dirty,
+    surum: ctl.getVersion(),
+    id: doc.recovered?.id,
+    bilgi: () => ({ name, uri: uriRef.current, ek: fileFormatOf(ctl.wb) }),
+    kodla: async () => ({ data: await workbookBytes(ctl.wb, ctl.sheet, { name: "taslak.xlsx", format: "xlsx", converted: false }), dataName: "taslak.xlsx" }),
+    agir: () => ctl.wb.sheets.reduce((n, sh) => n + ctl.wb.engine.cellCount(sh.id), 0) > 20_000,
+  });
+
   const share = async () => {
     if (ctl.edit && !ctl.commitEdit(null)) return;
     try {
@@ -191,6 +234,34 @@ export default function TabloScreen({ doc, platform, onClose, dark }: DocScreenP
       await platform.shareFile(plan.name, bytes, mimeFor(plan.name));
     } catch (e) {
       if ((e as Error)?.name !== "AbortError") toast(`Paylaşılamadı: ${(e as Error)?.message ?? e}`, "error");
+    }
+  };
+
+  /* ------------------------------ Yazdırma ve PDF ------------------------------ */
+
+  // Masaüstünün yazdırma çıktısı: sayfa sonları, sığdırma, kılavuz çizgileri, üst/alt bilgi sayfa ayarlarından.
+  const printing = useRef(false);
+  const print = async (scope: PrintScope) => {
+    setPanel(null);
+    if (printing.current || (ctl.edit && !ctl.commitEdit(null))) return;
+    const html = buildPrintHtml(ctl.wb, ctl.sheet, { scope, selection: scope === "selection" ? ctl.range : undefined });
+    if (!html) {
+      toast(scope === "workbook" ? "Çalışma kitabında yazdırılacak veri yok." : "Yazdırılacak veri yok.");
+      return;
+    }
+    printing.current = true;
+    const cleanup = preparePrint(ctl.wb, ctl.sheet, html);
+    document.documentElement.classList.add("tb-yazdiriliyor");
+    try {
+      const box = paperBox(ctl.sheet);
+      await yazdirmaAc(platform, { name: baseOf(name), page: { width: inc(box.w), height: inc(box.h) } });
+    } finally {
+      cleanup();
+      document.documentElement.classList.remove("tb-yazdiriliyor");
+      // Yazdırma kökü ve @page kuralı kaldırılır (sonraki Belge/Sunum yazdırmasını etkilemesin).
+      document.getElementById("tb-print")?.remove();
+      document.getElementById("tb-print-page")?.remove();
+      printing.current = false;
     }
   };
 
@@ -238,6 +309,8 @@ export default function TabloScreen({ doc, platform, onClose, dark }: DocScreenP
       if (!ctl.edit || ctl.commitEdit(null)) inputRef.current?.blur();
       return true;
     }
+    // Kopyalanan aralığın kesik çizgisi önce kalkar (masaüstünde Esc)
+    if (panoyuBirak(ctl)) return true;
     void requestClose();
     return true;
   });
@@ -303,7 +376,13 @@ export default function TabloScreen({ doc, platform, onClose, dark }: DocScreenP
   // Donanım klavyesi (tablet, klavyeli telefon): oklarla gezinme, yazınca düzenleme, Delete ile temizleme
   const keyRef = useRef<(e: KeyboardEvent) => void>(() => {});
   keyRef.current = (e) => {
-    if (load.kind !== "ready" || e.defaultPrevented || e.isComposing || panel || finding) return;
+    if (load.kind !== "ready" || e.defaultPrevented || e.isComposing) return;
+    if (yazdirKisayolu(e)) {
+      e.preventDefault();
+      setPanel("print");
+      return;
+    }
+    if (panel || finding) return;
     const t = e.target as HTMLElement | null;
     if (t?.closest?.("input, textarea, select, [contenteditable='true']") || document.querySelector(".m-confirm")) return;
     const mod = e.ctrlKey || e.metaKey;
@@ -322,7 +401,17 @@ export default function TabloScreen({ doc, platform, onClose, dark }: DocScreenP
       void save();
       return done();
     }
+    if (mod && !e.altKey && !e.shiftKey && e.code === "KeyC") {
+      void kopyala(ctl, platform, false);
+      return done();
+    }
+    if (e.key === "Escape" && panoyuBirak(ctl)) return done();
     if (!editing) return;
+    if (mod && !e.altKey && !e.shiftKey && (e.code === "KeyX" || e.code === "KeyV")) {
+      if (e.code === "KeyX") void kopyala(ctl, platform, true);
+      else void yapistir(ctl, platform);
+      return done();
+    }
     if (mod && !e.altKey && (e.code === "KeyZ" || e.code === "KeyY")) {
       if (e.code === "KeyZ" && !e.shiftKey) E.undo(ctl);
       else E.redo(ctl);
@@ -391,6 +480,7 @@ export default function TabloScreen({ doc, platform, onClose, dark }: DocScreenP
 
   const sheetPanel = panel && typeof panel === "object" && "sheet" in panel ? panel.sheet : null;
   const renamePanel = panel && typeof panel === "object" && "rename" in panel ? panel.rename : null;
+  const filterPanel = panel && typeof panel === "object" && "filter" in panel ? panel.filter : null;
   const closePanel = () => setPanel(null);
 
   return (
@@ -409,10 +499,10 @@ export default function TabloScreen({ doc, platform, onClose, dark }: DocScreenP
       )}
       {ready && (
         <>
-          {finding ? <FindBar ctl={ctl} onClose={() => setFinding(false)} /> : <FormulaBar ctl={ctl} editable={editing} docked={docked} inputRef={inputRef} onFx={() => setPanel("fx")} onFocusChange={setBarFocus} />}
+          {finding ? <FindBar ctl={ctl} editable={editing} onClose={() => setFinding(false)} /> : <FormulaBar ctl={ctl} editable={editing} docked={docked} inputRef={inputRef} onFx={() => setPanel("fx")} onFocusChange={setBarFocus} />}
           <main className="m-tablo-main">
             <GridBoundary>
-              <MobileGrid ctl={ctl} dark={dark} api={api} describedBy="m-tablo-status" onEditRequest={startEditing} />
+              <MobileGrid ctl={ctl} dark={dark} api={api} describedBy="m-tablo-status" onEditRequest={startEditing} onFilterButton={editing ? (col) => setPanel({ filter: col }) : undefined} />
             </GridBoundary>
           </main>
           <div className="m-tablo-foot">
@@ -427,16 +517,23 @@ export default function TabloScreen({ doc, platform, onClose, dark }: DocScreenP
           {editing && !docked && (
             <BottomToolbar label="Biçimlendirme">
               <ToolButton icon={<Autosum24Regular />} label="Otomatik Toplam" onClick={autoSum} />
+              <ToolButton icon={<Cut24Regular />} label="Kes" onClick={() => void kopyala(ctl, platform, true)} />
+              <ToolButton icon={<Copy24Regular />} label="Kopyala" onClick={() => void kopyala(ctl, platform, false)} />
+              <ToolButton icon={<ClipboardPaste24Regular />} label="Yapıştır" onClick={() => void yapistir(ctl, platform)} />
               <ToolButton icon={<TextBold24Regular />} label="Kalın" active={!!style.bold} onClick={run(() => toggle(ctl, "bold"))} />
               <ToolButton icon={<TextItalic24Regular />} label="İtalik" active={!!style.italic} onClick={run(() => toggle(ctl, "italic"))} />
               <ToolButton icon={<TextUnderline24Regular />} label="Altı çizili" active={!!style.underline} onClick={run(() => toggleUnderline(ctl))} />
+              <ToolButton icon={<TextFont24Regular />} label="Yazı tipi ve boyutu" onClick={() => setPanel("font")} />
               <ToolButton icon={<ColorIcon icon={<TextColor24Regular />} color={style.color ?? "#000000"} />} label="Yazı rengi" onClick={() => setPanel("color")} />
               <ToolButton icon={<ColorIcon icon={<PaintBucket24Regular />} color={style.fill ?? "transparent"} />} label="Dolgu rengi" onClick={() => setPanel("fill")} />
+              <ToolButton icon={<BorderAll24Regular />} label="Kenarlıklar" onClick={() => setPanel("border")} />
               <ToolButton icon={<TextAlignLeft24Regular />} label="Hizalama" onClick={() => setPanel("align")} />
               <ToolButton icon={<TextWrap24Regular />} label="Metni kaydır" active={!!style.wrap} onClick={run(() => toggleWrap(ctl))} />
+              <ToolButton icon={<TableCellsMerge24Regular />} label="Birleştir ve ortala" active={birlesik(ctl)} onClick={() => birlestirVeOrtala(ctl)} />
               <ToolButton icon={<NumberSymbol24Regular />} label="Sayı biçimi" onClick={() => setPanel("numfmt")} />
               <ToolButton icon={<DecimalArrowRight24Regular />} label="Ondalık artır" onClick={run(() => changeDecimals(ctl, 1))} />
               <ToolButton icon={<DecimalArrowLeft24Regular />} label="Ondalık azalt" onClick={run(() => changeDecimals(ctl, -1))} />
+              <ToolButton icon={<TextSortAscending24Regular />} label="Sırala ve filtrele" active={!!filtreBul(ctl)} onClick={() => setPanel("sort")} />
               <ToolButton icon={<TableInsertRow24Regular />} label="Satır ve sütun" onClick={() => setPanel("rows")} />
               <ToolButton icon={<Eraser24Regular />} label="Hücreyi temizle" onClick={run(() => E.clearContents(ctl))} />
             </BottomToolbar>
@@ -447,8 +544,10 @@ export default function TabloScreen({ doc, platform, onClose, dark }: DocScreenP
       <Sheet open={panel === "more"} title="Daha fazla" onClose={closePanel}>
         <div className="m-tablo-list">
           {editing && <MenuItem icon={<Checkmark24Regular />} label="Düzenlemeyi bitir" hint="Görüntüleme kipine geç" onClick={finishEditing} />}
+          {!editing && <MenuItem icon={<Copy24Regular />} label="Kopyala" hint={formatRange(ctl.range)} onClick={() => (closePanel(), void kopyala(ctl, platform, false))} />}
           <MenuItem icon={<Share24Regular />} label="Paylaş" onClick={() => (closePanel(), void share())} />
           <MenuItem icon={<SaveCopy24Regular />} label="Farklı kaydet" onClick={() => setPanel("saveas")} />
+          <MenuItem icon={<Print24Regular />} label={YAZDIR_ETIKETI} hint={YAZDIR_IPUCU} onClick={() => setPanel("print")} />
           <MenuItem icon={<Search24Regular />} label="Bul" onClick={() => (closePanel(), setFinding(true))} />
           {isFrozen(ctl) ? (
             <MenuItem icon={<TableFreezeColumnAndRow24Regular />} label="Bölmeleri çöz" onClick={() => (closePanel(), freeze(ctl, "none"))} />
@@ -473,6 +572,15 @@ export default function TabloScreen({ doc, platform, onClose, dark }: DocScreenP
         </div>
       </Sheet>
 
+      <Sheet open={panel === "print"} title={YAZDIR_ETIKETI} onClose={closePanel}>
+        <div className="m-tablo-list">
+          <MenuItem icon={<Print24Regular />} label="Etkin sayfa" hint={`«${sheet.name}»`} onClick={() => void print("active")} />
+          <MenuItem icon={<Print24Regular />} label="Tüm çalışma kitabı" hint={`${visibleSheets} sayfa`} onClick={() => void print("workbook")} />
+          <MenuItem icon={<Print24Regular />} label="Seçim" hint={formatRange(ctl.range)} onClick={() => void print("selection")} />
+        </div>
+        <p className="m-tablo-note">{YAZDIR_IPUCU}. Kâğıt boyutu, yönlendirme ve kenar boşlukları sayfanın yazdırma ayarlarından alınır.</p>
+      </Sheet>
+
       <Sheet open={panel === "fx"} title="İşlev ekle" onClose={closePanel}>
         <FunctionPanel onPick={pickFunction} />
       </Sheet>
@@ -484,12 +592,26 @@ export default function TabloScreen({ doc, platform, onClose, dark }: DocScreenP
       </Sheet>
       <Sheet open={panel === "align"} title="Hizalama" modeless onClose={closePanel}>
         <AlignPanel ctl={ctl} />
+        <h3 className="m-tablo-subhead">Birleştir</h3>
+        <BirlestirSecenekleri ctl={ctl} onDone={closePanel} />
       </Sheet>
       <Sheet open={panel === "numfmt"} title="Sayı biçimi" modeless onClose={closePanel}>
         <NumberFormatPanel ctl={ctl} onDone={closePanel} />
       </Sheet>
       <Sheet open={panel === "rows"} title="Satır ve sütun" modeless onClose={closePanel}>
         <RowsColsPanel ctl={ctl} onDone={closePanel} />
+      </Sheet>
+      <Sheet open={panel === "font"} title="Yazı tipi" modeless onClose={closePanel}>
+        <YaziTipiPanel ctl={ctl} />
+      </Sheet>
+      <Sheet open={panel === "border"} title="Kenarlıklar" modeless onClose={closePanel}>
+        <KenarlikPanel ctl={ctl} onDone={closePanel} />
+      </Sheet>
+      <Sheet open={panel === "sort"} title="Sırala ve filtrele" onClose={closePanel}>
+        <SiralaFiltrePanel ctl={ctl} onFilter={(col) => setPanel({ filter: col })} onDone={closePanel} />
+      </Sheet>
+      <Sheet open={filterPanel !== null} title={filterPanel !== null && filtreBul(ctl, filterPanel) ? `Filtre: ${sutunAdi(ctl, filtreBul(ctl, filterPanel)!, filterPanel)}` : "Filtre"} onClose={closePanel}>
+        {filterPanel !== null && <FiltrePanel key={filterPanel} ctl={ctl} col={filterPanel} onDone={closePanel} />}
       </Sheet>
       <Sheet open={sheetPanel !== null} title={sheetPanel !== null ? `Sayfa: ${ctl.wb.sheets[sheetPanel]?.name ?? ""}` : "Sayfa"} onClose={closePanel}>
         {sheetPanel !== null && (

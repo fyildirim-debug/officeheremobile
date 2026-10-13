@@ -2,4 +2,11 @@
 <resources>
     <string name="app_name">OfficeHere</string>
     <string name="title_activity_main">OfficeHere</string>
+    <!-- Uygulama kısayolları (xml/shortcuts.xml). Kısa etiket en çok 10, uzun etiket en çok 25 karakter önerilir. -->
+    <string name="kisayol_belge">Yeni belge</string>
+    <string name="kisayol_belge_uzun">Yeni boş belge</string>
+    <string name="kisayol_tablo">Yeni tablo</string>
+    <string name="kisayol_tablo_uzun">Yeni boş çalışma kitabı</string>
+    <string name="kisayol_sunum">Yeni sunu</string>
+    <string name="kisayol_sunum_uzun">Yeni boş sunu</string>
 </resources>

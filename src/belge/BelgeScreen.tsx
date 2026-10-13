@@ -1,6 +1,7 @@
 // Belge ekranı: masaüstü Belge'nin düzenleyicisi, sayfalaması ve sayfa görünümü (DocumentView, koyu sayfa)
 // üzerine dokunmatik kabuk. Açılışta görüntüleme kipi; kalemle düzenleme kipine geçilir.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { flushSync } from "react-dom";
 import { useEditor, useEditorState } from "@tiptap/react";
 import type { Editor, JSONContent } from "@tiptap/core";
 import type { Node as PMNode } from "@tiptap/pm/model";
@@ -18,9 +19,11 @@ import { setTrackAuthorSource } from "@belge/editor/trackChanges";
 import { PROTECTION_LABEL, isLocked } from "@belge/editor/protection";
 import { fieldsKey } from "@belge/editor/fields";
 import { bodyWidth, sectionGeoms } from "@belge/editor/sections";
+import { buildPrintRoot, removePrintRoot } from "@belge/views/printRender";
+import { TEMPLATES } from "@belge/templates/templates";
 import { defaultSettings, emptyDoc, normalizeDoc, type BelgeDocument, type DocSettings } from "@belge/model/document";
 import { resolveStyles, styleSheetCss, themeByName, type StyleDef } from "@belge/model/styles";
-import { openDocument, type FormatId } from "@belge/io";
+import { formatOfExt, openDocument, type FormatId } from "@belge/io";
 import type { ViewOptions } from "@belge/state/context";
 import { useProtection } from "@belge/state/useProtection";
 import { useFieldSync } from "@belge/state/useFieldSync";
@@ -34,7 +37,10 @@ import "@belge/styles/ui-extras.css";
 import { AppBar, IconButton } from "../shell/AppBar";
 import { useBackHandler } from "../shell/back";
 import { confirmDialog, toast } from "../shell/feedback";
-import { baseOf, type DocScreenProps } from "../platform";
+import { inc, kareler, yazdirKisayolu, yazdirmaAc } from "../shell/yazdir";
+import { baseOf, extOf, type DocScreenProps } from "../platform";
+import { useTaslak } from "../shell/useTaslak";
+import { recentWhen } from "../home/util";
 import { MobilKoruma, NESNE_ADI, kapsayiciIcinde, korumaDurumu, silinenNesneler } from "./koruma";
 import { bicimDurumu, bicimiTemizle, boyutAdim, girinti, hizala, isaretDegistir, isaretEtkin, satirAraligi, stilUygula, vurguRengi, yaziBoyutu, yaziRengi, yaziTipi } from "./komutlar";
 import { farkliHedef, kayitHedefi, kodla, mimeOf } from "./kayit";
@@ -53,19 +59,40 @@ interface Yuklenen {
   format: FormatId;
   uyari?: string;
   yeni: boolean;
+  /** Otomatik kurtarılan taslak: kaydedilmemiş olarak açılır. */
+  kurtarildi?: boolean;
+}
+
+/** Yeni boş belge ya da masaüstü şablonundan (Mektup, Özgeçmiş…) yeni belge. */
+function yeniBelge(sablon?: string): BelgeDocument {
+  const t = sablon ? TEMPLATES.find((x) => x.id === sablon) : undefined;
+  return t ? t.build() : { content: emptyDoc(), settings: defaultSettings() };
+}
+
+/** Kurtarılan taslak bilgisi (ileti çubuğu). */
+function kurtarmaNotu(savedAt: number): string {
+  return `Kurtarılan taslak (${recentWhen(savedAt)}): kaydedilmemiş değişiklikler geri getirildi. Saklamak için kaydedin.`;
 }
 
 /** Ekran: belge ayrıştırılana dek yükleniyor görünümü, sonra düzenleyici. */
 export default function BelgeScreen(props: DocScreenProps) {
   const { doc, onClose, dark } = props;
-  const [yuk, setYuk] = useState<Yuklenen | null>(() => (doc.data ? null : { belge: { content: emptyDoc(), settings: defaultSettings() }, format: "docx", yeni: true }));
+  const [yuk, setYuk] = useState<Yuklenen | null>(() => (doc.data ? null : { belge: yeniBelge(doc.template), format: "docx", yeni: true }));
   const [hata, setHata] = useState<string | null>(null);
 
   useEffect(() => {
     if (!doc.data) return;
     let iptal = false;
-    openDocument(doc.name, doc.data).then(
-      (r) => !iptal && setYuk({ belge: r.doc, format: r.format, uyari: r.warning, yeni: false }),
+    const k = doc.recovered;
+    // Kurtarılan taslak docx olarak kodlanmıştır; ad ve biçim özgün belgenin.
+    openDocument(k?.dataName ?? doc.name, doc.data).then(
+      (r) =>
+        !iptal &&
+        setYuk(
+          k
+            ? { belge: r.doc, format: formatOfExt(extOf(doc.name)) ?? r.format, uyari: kurtarmaNotu(k.savedAt), yeni: false, kurtarildi: true }
+            : { belge: r.doc, format: r.format, uyari: r.warning, yeni: false },
+        ),
       (e: Error) => {
         if (iptal) return;
         setHata(`"${doc.name}" açılamadı: ${e.message}`);
@@ -181,8 +208,10 @@ function BelgeGovde({ doc, platform, onClose, dark, yuk, editor, controller, sty
   const [duzenle, setDuzenle] = useState(yuk.yeni);
   const [ad, setAd] = useState(doc.name);
   const [format, setFormat] = useState<FormatId>(yuk.format);
-  const [kirli, setKirli] = useState(false);
+  const [kirli, setKirli] = useState(!!yuk.kurtarildi);
   const [kopyaVar, setKopyaVar] = useState(!yuk.yeni);
+  /** Belgenin cihazdaki konumu (Farklı kaydetten sonra yenisi). */
+  const uriRef = useRef(doc.uri);
   const [kaydediliyor, setKaydediliyor] = useState(false);
   const [mod, setModState] = useState<Mod>(okuGorunum);
   const [sigdir, setSigdir] = useState(true);
@@ -230,7 +259,8 @@ function BelgeGovde({ doc, platform, onClose, dark, yuk, editor, controller, sty
     const state = EditorState.create({ doc: editor.state.doc, plugins: editor.state.plugins, selection: TextSelection.atStart(editor.state.doc) });
     editor.view.updateState(state);
     editor.setEditable(yuk.yeni, false);
-    tabanRef.current = editor.state.doc;
+    // Kurtarılan taslak kayıtlı hâlle eşleşmez: kaydedilene dek "Kaydedilmedi".
+    tabanRef.current = yuk.kurtarildi ? null : editor.state.doc;
     if (import.meta.env.DEV) (window as unknown as { __belgeMobil: unknown }).__belgeMobil = { editor, controller };
     // Yeni belge düzenleme kipinde, imleç hazır.
     if (yuk.yeni) editor.view.focus();
@@ -509,6 +539,7 @@ function BelgeGovde({ doc, platform, onClose, dark, yuk, editor, controller, sty
         // Farklı kaydette (Android'de) aynı ad olsa da konum sorulur.
         const saved = await platform.saveFile(t.name, bytes, mimeOf(t.format), hedefBicim ? { saveAs: true } : undefined);
         const yeniAd = saved.name || t.name;
+        if (saved.uri) uriRef.current = saved.uri;
         setAd(yeniAd);
         setFormat(t.format);
         tabanRef.current = anlik;
@@ -529,6 +560,17 @@ function BelgeGovde({ doc, platform, onClose, dark, yuk, editor, controller, sty
     [ad, format, editor, baytlar, platform],
   );
 
+  // Otomatik kurtarma: kaydedilmemiş değişiklikler taslak olarak saklanır (tam doğrulukla .docx).
+  useTaslak({
+    app: "belge",
+    kirli,
+    surum: version,
+    id: doc.recovered?.id,
+    bilgi: () => ({ name: ad, uri: uriRef.current }),
+    kodla: async () => ({ data: await baytlar("docx", "taslak.docx"), dataName: "taslak.docx" }),
+    agir: () => editor.state.doc.content.size > 400_000,
+  });
+
   const paylas = async () => {
     setPanel(null);
     const t = kayitHedefi(ad, format);
@@ -538,6 +580,51 @@ function BelgeGovde({ doc, platform, onClose, dark, yuk, editor, controller, sty
       toast(`Paylaşılamadı: ${(err as Error).message}`, "error");
     }
   };
+
+  /* ---------------- Yazdırma ve PDF ---------------- */
+
+  // Masaüstünün yazdırma kökü (sayfa düzeninin sayfa kopyaları); mobil görünümde geçici olarak sayfa düzenine geçilir.
+  const yazdiriliyor = useRef(false);
+  const yazdir = async () => {
+    if (yazdiriliyor.current) return;
+    yazdiriliyor.current = true;
+    setPanel(null);
+    const onceki = mod;
+    try {
+      if (onceki !== "print") flushSync(() => setModState("print"));
+      await kareler();
+      controller.measureNow?.();
+      await kareler();
+      const pagesEl = scrollRef.current?.querySelector<HTMLElement>(".bl-pages");
+      const pages = controller.info.pages;
+      const kok = pagesEl ? buildPrintRoot(pagesEl, { pages, scale: olcekRef.current, pageColor: settings.pageColor }) : null;
+      if (!kok) {
+        toast("Belge yazdırmaya hazırlanamadı.", "error");
+        return;
+      }
+      const ilk = pages[0];
+      document.documentElement.classList.add("bl-yazdiriliyor");
+      await yazdirmaAc(platform, { name: baseOf(ad), page: ilk ? { width: inc(ilk.w), height: inc(ilk.h) } : undefined });
+    } finally {
+      document.documentElement.classList.remove("bl-yazdiriliyor");
+      removePrintRoot();
+      if (onceki !== "print") setModState(onceki);
+      yazdiriliyor.current = false;
+    }
+  };
+  const yazdirRef = useRef(yazdir);
+  yazdirRef.current = yazdir;
+
+  // Donanım klavyesi: Ctrl+P.
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => {
+      if (!yazdirKisayolu(e)) return;
+      e.preventDefault();
+      void yazdirRef.current();
+    };
+    window.addEventListener("keydown", on);
+    return () => window.removeEventListener("keydown", on);
+  }, []);
 
   /* ---------------- Geri ---------------- */
 
@@ -718,7 +805,7 @@ function BelgeGovde({ doc, platform, onClose, dark, yuk, editor, controller, sty
             }}
           />
         )}
-        {panel === "menu" && <MenuIcerik onBul={bulAc} onGorunum={() => setPanel("gorunum")} onPaylas={() => void paylas()} onFarkli={() => setPanel("farkli")} onBilgi={() => panelAc("bilgi")} />}
+        {panel === "menu" && <MenuIcerik onBul={bulAc} onGorunum={() => setPanel("gorunum")} onPaylas={() => void paylas()} onYazdir={() => void yazdir()} onFarkli={() => setPanel("farkli")} onBilgi={() => panelAc("bilgi")} />}
       </Panel>
     </div>
   );

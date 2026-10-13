@@ -74,6 +74,7 @@ body {
   flex: 1;
   min-width: 0;
   padding: 0 6px;
+  container-type: inline-size;
 }
 
 .m-appbar-title h1 {
@@ -91,6 +92,13 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Dar başlıkta (çok düğme, dar ekran) uygulama adı düşer, kayıt durumu kesilmeden görünür. */
+@container (max-width: 150px) {
+  .m-appbar-sub-app {
+    display: none;
+  }
 }
 
 .m-appbar-actions {
@@ -212,6 +220,14 @@ body {
 
 .m-sheet.is-modeless {
   max-height: 46dvh;
+}
+
+/* Tablet ve yatay ekranda panel ortalanır, okunur genişlikte kalır. */
+@media (min-width: 700px) {
+  .m-sheet {
+    max-width: 640px;
+    margin-inline: auto;
+  }
 }
 
 @keyframes m-sheet-in {
@@ -451,6 +467,17 @@ body {
   font: inherit;
   font-size: 14px;
   cursor: pointer;
+}
+
+/* Görünen yükseklik 34 px; dokunma alanı üstten ve alttan 6'şar px genişler (en az 44 px). */
+.m-chip {
+  position: relative;
+}
+
+.m-chip::after {
+  content: "";
+  position: absolute;
+  inset: -6px 0;
 }
 
 .m-chip.is-on {

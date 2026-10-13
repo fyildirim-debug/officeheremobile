@@ -61,9 +61,11 @@ export interface MobileGridProps {
   onEditRequest: () => void;
   /** Erişilebilir durum metninin kimliği. */
   describedBy?: string;
+  /** Filtre başlığındaki düğmeye dokunuldu (verilmezse düğme hücre gibi seçilir). */
+  onFilterButton?: (col: number, row: number) => void;
 }
 
-export function MobileGrid({ ctl, dark, api, onEditRequest, describedBy }: MobileGridProps) {
+export function MobileGrid({ ctl, dark, api, onEditRequest, describedBy, onFilterButton }: MobileGridProps) {
   useSyncExternalStore(ctl.subscribe, ctl.getVersion);
   const sheet = ctl.sheet;
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -74,8 +76,8 @@ export function MobileGrid({ ctl, dark, api, onEditRequest, describedBy }: Mobil
   const layoutRef = useRef<GridLayout | null>(null);
   const renderedKey = useRef("");
   const raf = useRef(0);
-  const props = useRef({ dark, onEditRequest });
-  props.current = { dark, onEditRequest };
+  const props = useRef({ dark, onEditRequest, onFilterButton });
+  props.current = { dark, onEditRequest, onFilterButton };
 
   const scroll = () => {
     const id = ctl.sheet.id;
@@ -159,7 +161,8 @@ export function MobileGrid({ ctl, dark, api, onEditRequest, describedBy }: Mobil
       selection: ctl.sel,
       showSelection: !(e && e.pointSpan && e.sheetId !== sh.id),
       refs,
-      clip: null,
+      // Kopyalanan/kesilen aralık kesik çizgiyle (kayan çizgi yok: pil)
+      clip: ctl.clip && ctl.clip.sheetId === sh.id ? { rect: ctl.clip.rect, cut: ctl.clip.cut, offset: 0 } : null,
       fillPreview: null,
       movePreview: null,
       editing: e && e.sheetId === sh.id ? { row: e.row, col: e.col } : null,
@@ -382,6 +385,17 @@ export function MobileGrid({ ctl, dark, api, onEditRequest, describedBy }: Mobil
         ctl.selectRows(hit.row, hit.row);
         return;
       case "cell": {
+        // Filtre düğmesi: başlık hücresinin sağ kenarı (dokunmada geniş alan)
+        const onFilter = props.current.onFilterButton;
+        const L = layoutRef.current;
+        if (onFilter && L && filtersOf(ctl.sheet).some((f) => f.range.r1 === hit.row && hit.col >= f.range.c1 && hit.col <= f.range.c2)) {
+          const rc = L.cellRect(hit.row, hit.col);
+          if (p.x >= rc.x + rc.w - Math.max(30, (22 * ctl.sheet.zoom) / 100)) {
+            ctl.selectCell(hit.row, hit.col, false);
+            onFilter(hit.col, hit.row);
+            return;
+          }
+        }
         const m = ctl.sheet.mergeAt(hit.row, hit.col);
         const a = ctl.sel.active;
         const already = ctl.sel.ranges.length === 1 && (m ? contains(m, a.row, a.col) : a.row === hit.row && a.col === hit.col);

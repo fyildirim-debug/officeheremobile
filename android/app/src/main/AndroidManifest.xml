@@ -28,6 +28,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Uygulama kısayolları (simgeye uzun basınca): yeni belge, tablo, sunu. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+
             <!-- "Birlikte aç" / "Düzenle": desteklenen biçimler MIME türüyle (src/platform/nativeFiles.ts EXT_MIMES). -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

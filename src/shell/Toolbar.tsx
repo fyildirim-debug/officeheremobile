@@ -1,5 +1,5 @@
 // Alt araç çubuğu ve alttan açılan panel (mobilde şeridin karşılığı).
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { Dismiss24Regular } from "@fluentui/react-icons";
 
 /** Ekranın altındaki yatay kaydırılabilir araç çubuğu. */
@@ -51,6 +51,11 @@ export interface SheetProps {
 
 /** Alttan açılan panel; kapatma çizgisi, başlık ve içerik. */
 export function Sheet({ open, title, onClose, children, modeless }: SheetProps) {
+  // Dokunmayla açılan panelin arkasından gelen tıklama (aynı dokunuşun click olayı) paneli kapatmasın.
+  const acilis = useRef(0);
+  useLayoutEffect(() => {
+    if (open) acilis.current = performance.now();
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -60,7 +65,7 @@ export function Sheet({ open, title, onClose, children, modeless }: SheetProps) 
   if (!open) return null;
   return (
     <>
-      {!modeless && <div className="m-sheet-scrim" onClick={onClose} />}
+      {!modeless && <div className="m-sheet-scrim" onClick={() => performance.now() - acilis.current > 400 && onClose()} />}
       <section className={`m-sheet${modeless ? " is-modeless" : ""}`} role="dialog" aria-label={title} onMouseDown={(e) => (e.target as HTMLElement).closest("input,select,textarea") || e.preventDefault()}>
         <div className="m-sheet-head">
           <span className="m-sheet-grip" aria-hidden />

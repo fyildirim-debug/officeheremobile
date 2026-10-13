@@ -44,12 +44,19 @@ Mobilde amaç belgeleri **eksiksiz görüntülemek** ve **hızlı düzeltmeler**
 - **Belge:** sayfa görünümü ve ekrana akan mobil görünüm, yakınlaştırma; kalın/italik/altı çizili,
   yazı tipi, boyut ve renk, vurgu, hizalama, listeler, girinti, stiller, bul ve değiştir, sözcük sayısı.
 - **Tablo:** dokunmatik ızgara (kaydırma, iki parmakla yakınlaştırma, aralık seçimi), formül çubuğu,
-  Türkçe işlev adlarıyla formüller (`=TOPLA`, `=EĞER`…), Otomatik Toplam, temel biçim, sayı biçimleri,
-  satır/sütun/sayfa işlemleri, bul, bölmeleri dondur.
-- **Sunum:** slayt görünümü ve küçük resimler, kaydırarak gezinme, geçiş ve animasyonlu slayt gösterisi,
-  konuşmacı notları, metin kutularında yazma ve biçimleme, slayt ekle/çoğalt/sil/taşı/gizle.
+  Türkçe işlev adlarıyla formüller (`=TOPLA`, `=EĞER`…), Otomatik Toplam, kes/kopyala/yapıştır
+  (diğer uygulamalarla da), yazı tipi ve boyutu, renkler, kenarlıklar, hücre birleştirme, sayı
+  biçimleri, sıralama ve filtre, satır/sütun/sayfa işlemleri, bul ve değiştir, bölmeleri dondur.
+- **Sunum:** slayt görünümü ve küçük resimler, kaydırarak gezinme, geçiş ve animasyonlu slayt gösterisi
+  (kalem, vurgulayıcı, silgi ve lazer işaretçisiyle), konuşmacı notları, metin kutularında yazma ve
+  biçimleme, slayt ekle/çoğalt/sil/taşı/gizle.
 - Tablolar, resimler, grafikler, şekiller, SmartArt ve denklemler masaüstündeki gibi çizilir; mobilde
   yalnız görüntülenir.
+- **Yazdır / PDF:** üç uygulamada masaüstüyle aynı çıktı; sistem yazdırma penceresinde yazıcı ya da
+  "PDF olarak kaydet" seçilir.
+- **Otomatik kurtarma:** kaydedilmemiş değişiklikler uygulama arka plana gidince ve düzenlerken
+  aralıklarla saklanır; uygulama kapanırsa başlangıç ekranı "Kurtarılan dosyalar" altında önerir.
+- **Şablonlar:** mektup, özgeçmiş, rapor, bütçe, fatura, proje sunusu ve diğerleri (masaüstüyle aynı).
 - Geri al/yinele, kaydedilmemiş değişiklik uyarısı, paylaş, farklı kaydet.
 
 ## Tema
@@ -64,6 +71,7 @@ etkilenmez.
 - "Birlikte aç" ve "Gönder": dosya yöneticisinden, e-posta ya da mesajlaşma uygulamalarından gelen
   belgeler doğrudan açılır.
 - Açılan belge aynı konuma kaydedilir; yeni belgede konum sorulur.
+- Uygulama kısayolları: simgeye uzun basınca "Yeni belge", "Yeni tablo", "Yeni sunu".
 - Hesap, internet bağlantısı ya da depolama izni gerekmez; reklam ve veri toplama yoktur.
 - Android 7.0 (API 24) ve üstü.
 

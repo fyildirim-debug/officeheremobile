@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Add24Regular,
   ArrowDown24Regular,
+  ArrowSwap24Regular,
   ArrowUp24Regular,
   Checkmark20Regular,
   Dismiss24Regular,
@@ -27,7 +28,9 @@ import type { Controller } from "@tablo/controller";
 import * as E from "@tablo/actions/edit";
 import { activeStyle, changeDecimals, setColor, setFill, setHAlign, setNumFmt, setVAlign, toggleWrap } from "@tablo/actions/format";
 import { buildCode, detectCategory, DATE_TYPES, TIME_TYPES, type NumCategory } from "@tablo/dialogs/numberFormats";
-import { findAll, nextHitIndex, type FindHit } from "@tablo/model/find";
+import { nextHitIndex, type FindHit } from "@tablo/model/find";
+import { hucrelerdeBul, turkceDesen } from "./bul";
+import { toast } from "../shell/feedback";
 import { paletteOf } from "@tablo/model/theme";
 import { rectCols, rectRows } from "@tablo/model/rect";
 
@@ -353,10 +356,12 @@ export function RenamePanel({ ctl, index, onDone }: { ctl: Controller; index: nu
 
 /* ------------------------------ Bul ------------------------------ */
 
-export function FindBar({ ctl, onClose }: { ctl: Controller; onClose: () => void }) {
+export function FindBar({ ctl, onClose, editable = false }: { ctl: Controller; onClose: () => void; editable?: boolean }) {
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<FindHit[]>([]);
   const [idx, setIdx] = useState(-1);
+  const [degis, setDegis] = useState(false);
+  const [yeni, setYeni] = useState("");
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => ref.current?.focus(), []);
   const show = (h: FindHit[], i: number) => {
@@ -369,7 +374,7 @@ export function FindBar({ ctl, onClose }: { ctl: Controller; onClose: () => void
   };
   const search = (query: string) => {
     setQ(query);
-    const h = query.trim() ? findAll(ctl.wb, ctl.wb.sheets.filter((s) => !s.hidden), { query: query.trim(), matchCase: false, wholeCell: false, lookIn: "values", byColumns: false }) : [];
+    const h = hucrelerdeBul(ctl.wb, ctl.wb.sheets.filter((s) => !s.hidden), query);
     setHits(h);
     if (!h.length) {
       setIdx(-1);
@@ -384,37 +389,80 @@ export function FindBar({ ctl, onClose }: { ctl: Controller; onClose: () => void
     if (!hits.length) return;
     show(hits, idx < 0 ? 0 : (idx + dir + hits.length) % hits.length);
   };
+  /** Etkin hücredeki eşleşmeyi değiştirir, sonrakine geçer. */
+  const degistir = () => {
+    if (ctl.edit && !ctl.commitEdit(null)) return;
+    const { row, col } = ctl.sel.active;
+    const burada = hits.some((h) => h.sheet === ctl.sheet && h.row === row && h.col === col);
+    if (!burada) return go(1);
+    ctl.ops.replaceAll(ctl.sheet, [{ row, col }], turkceDesen(q.trim(), true), yeni);
+    const h = hucrelerdeBul(ctl.wb, ctl.wb.sheets.filter((s) => !s.hidden), q);
+    setHits(h);
+    if (!h.length) {
+      setIdx(-1);
+      return;
+    }
+    show(h, nextHitIndex(h, ctl.sheet, row, col, false));
+  };
+  /** Tüm eşleşmeleri değiştirir (sayfa başına tek geri alma adımı). */
+  const tumu = () => {
+    if (ctl.edit && !ctl.commitEdit(null)) return;
+    let n = 0;
+    for (const sheet of new Set(hits.map((h) => h.sheet))) {
+      n += ctl.ops.replaceAll(sheet, hits.filter((h) => h.sheet === sheet).map((h) => ({ row: h.row, col: h.col })), turkceDesen(q.trim(), true), yeni);
+    }
+    toast(n ? `${n.toLocaleString("tr-TR")} hücrede değiştirildi.` : "Değiştirilecek eşleşme yok.", n ? "success" : "info");
+    search(q);
+  };
   return (
-    <div className="m-tablo-find" role="search">
-      <Search24Regular className="m-tablo-find-icon" />
-      <input
-        ref={ref}
-        type="search"
-        className="m-tablo-find-input"
-        aria-label="Bul"
-        placeholder="Hücrelerde ara"
-        value={q}
-        enterKeyHint="search"
-        onChange={(e) => search(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            go(e.shiftKey ? -1 : 1);
-          } else if (e.key === "Escape") onClose();
-        }}
-      />
-      <span className="m-tablo-find-count" aria-live="polite">
-        {q.trim() ? (hits.length ? `${idx + 1}/${hits.length}` : "Sonuç yok") : ""}
-      </span>
-      <button type="button" className="m-iconbtn" aria-label="Önceki" disabled={!hits.length} onClick={() => go(-1)}>
-        <ArrowUp24Regular />
-      </button>
-      <button type="button" className="m-iconbtn" aria-label="Sonraki" disabled={!hits.length} onClick={() => go(1)}>
-        <ArrowDown24Regular />
-      </button>
-      <button type="button" className="m-iconbtn" aria-label="Bulu kapat" onClick={onClose}>
-        <Dismiss24Regular />
-      </button>
+    <div className="m-tablo-findwrap">
+      <div className="m-tablo-find" role="search">
+        <Search24Regular className="m-tablo-find-icon" />
+        <input
+          ref={ref}
+          type="search"
+          className="m-tablo-find-input"
+          aria-label="Bul"
+          placeholder="Hücrelerde ara"
+          value={q}
+          enterKeyHint="search"
+          onChange={(e) => search(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              go(e.shiftKey ? -1 : 1);
+            } else if (e.key === "Escape") onClose();
+          }}
+        />
+        <span className="m-tablo-find-count" aria-live="polite">
+          {q.trim() ? (hits.length ? `${idx + 1}/${hits.length}` : "Sonuç yok") : ""}
+        </span>
+        <button type="button" className="m-iconbtn" aria-label="Önceki" disabled={!hits.length} onClick={() => go(-1)}>
+          <ArrowUp24Regular />
+        </button>
+        <button type="button" className="m-iconbtn" aria-label="Sonraki" disabled={!hits.length} onClick={() => go(1)}>
+          <ArrowDown24Regular />
+        </button>
+        {editable && (
+          <button type="button" className={`m-iconbtn${degis ? " is-active" : ""}`} aria-label="Değiştir" aria-pressed={degis} onClick={() => setDegis((d) => !d)}>
+            <ArrowSwap24Regular />
+          </button>
+        )}
+        <button type="button" className="m-iconbtn" aria-label="Bulu kapat" onClick={onClose}>
+          <Dismiss24Regular />
+        </button>
+      </div>
+      {editable && degis && (
+        <div className="m-tablo-find is-replace">
+          <input type="text" className="m-tablo-find-input" aria-label="Yeni metin" placeholder="Yeni metin" value={yeni} enterKeyHint="done" onChange={(e) => setYeni(e.target.value)} />
+          <button type="button" className="m-chip" disabled={!hits.length} onClick={degistir}>
+            Değiştir
+          </button>
+          <button type="button" className="m-chip" disabled={!hits.length} onClick={tumu}>
+            Tümü
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -448,6 +448,14 @@
   gap: 2px;
 }
 
+/* Panel altındaki açıklama (ör. yazdırma) */
+.m-tablo-note {
+  margin: 10px 8px 2px;
+  color: var(--oh-text-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .m-tablo-item {
   display: flex;
   align-items: center;
@@ -746,6 +754,15 @@
   border-bottom: 1px solid var(--oh-ribbon-border);
 }
 
+.m-tablo-findwrap {
+  flex: none;
+}
+
+.m-tablo-find.is-replace {
+  gap: 8px;
+  padding-right: 8px;
+}
+
 .m-tablo-find-icon {
   flex: none;
   color: var(--oh-text-muted);
@@ -769,4 +786,80 @@
   font-size: 13px;
   font-variant-numeric: tabular-nums;
   padding: 0 4px;
+}
+
+/* Yazdırma ve PDF (masaüstü #tb-print çıktısı): kâğıt koyu temada da beyaz, varsayılan yazı siyah. */
+@media print {
+  html.tb-yazdiriliyor,
+  html.tb-yazdiriliyor body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+    color: #000 !important;
+    color-scheme: light !important;
+  }
+
+  html.tb-yazdiriliyor #tb-print,
+  html.tb-yazdiriliyor #tb-print * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+/* Yazı tipi paneli */
+.m-tablo-font h3 {
+  margin: 14px 2px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--oh-text-muted);
+}
+
+.m-tablo-font-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.m-tablo-font-size {
+  min-width: 56px;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.m-tablo-sizes {
+  flex-wrap: wrap;
+  row-gap: 10px;
+  overflow: visible;
+  margin-top: 8px;
+}
+
+.m-tablo-tile:disabled {
+  opacity: 0.45;
+}
+
+/* Sütun filtresi: değer listesi kendi içinde kayar, düğmeler hep görünür. */
+.m-tablo-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.m-tablo-filter-list {
+  max-height: min(42dvh, 360px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.m-tablo-filter .m-confirm-buttons {
+  margin-top: 4px;
+}
+
+.m-tablo-subhead {
+  margin: 14px 2px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--oh-text-muted);
 }

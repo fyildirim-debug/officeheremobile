@@ -352,6 +352,12 @@
   .m-sunum.is-yaziyor .m-sunum-notlar {
     display: none;
   }
+
+  /* Not yazarken küçük resimler ve (notlara uygulanmayan) biçim araçları gizlenir; slayt görünür kalır. */
+  .m-sunum:has(.m-sunum-notlar textarea:focus) .m-sunum-seri,
+  .m-sunum:has(.m-sunum-notlar textarea:focus) > .m-toolbar {
+    display: none;
+  }
 }
 
 /* Slaytlar ızgarası (tam ekran) */
@@ -605,4 +611,110 @@
 
 .m-sk .tb-edit ::selection {
   background: rgb(86 156 255 / 45%);
+}
+
+/* Yazdırma ve PDF (masaüstü print.css): kâğıt koyu temada da açık renk düzeninde. */
+@media print {
+  html.is-printing,
+  html.is-printing body {
+    color-scheme: light !important;
+  }
+}
+
+/* Gösteride kalem araçları: üst çubukta kalem düğmesi, altta araç çubuğu (lazer, kalem, vurgulayıcı, silgi, renkler). */
+.m-sunum-show-ust-sag {
+  display: flex;
+  gap: 8px;
+}
+
+.m-sunum-show-ust .m-iconbtn.is-active {
+  background: rgb(255 255 255 / 88%);
+  color: #000;
+}
+
+.m-sunum-show-arac {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--m-safe-bottom) + 12px);
+  z-index: 3001;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: calc(100vw - 12px);
+  box-sizing: border-box;
+  padding: 4px;
+  border-radius: 16px;
+  background: rgb(20 20 20 / 78%);
+  color: #fff;
+  translate: -50% 0;
+}
+
+.m-sunum-show-arac-satir {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.m-sunum-show-arac .m-iconbtn {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  color: #fff;
+}
+
+.m-sunum-show-arac .m-iconbtn.is-active {
+  background: rgb(255 255 255 / 24%);
+}
+
+.m-sunum-show-arac .m-iconbtn:disabled {
+  opacity: 0.4;
+}
+
+.m-sunum-show-renk {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.m-sunum-show-renk i {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid rgb(255 255 255 / 55%);
+  box-sizing: border-box;
+}
+
+.m-sunum-show-renk.is-on i {
+  box-shadow: 0 0 0 3px #fff;
+}
+
+/* Lazer noktası: masaüstü yarıçapı slayt biriminde; mobilde ekranda sabit boyut (Gosteri ölçekten hesaplar). */
+.m-sunum-show .show-laser circle:first-child {
+  r: var(--m-lazer-dis, 14px);
+}
+
+.m-sunum-show .show-laser circle:last-child {
+  r: var(--m-lazer-ic, 7px);
+}
+
+/* Geniş ekranda (yatay telefon, tablet) araçlar ve renkler tek satırda: slaydın daha azını örter. */
+@media (min-width: 640px) {
+  .m-sunum-show-arac {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .m-sunum-show-arac-satir + .m-sunum-show-arac-satir {
+    padding-left: 6px;
+    border-left: 1px solid rgb(255 255 255 / 25%);
+  }
 }

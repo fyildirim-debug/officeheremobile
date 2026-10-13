@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Uygulama kısayolu: yeni tablo (Tablo yeşili zeminde ızgara). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path android:fillColor="#1d7a46" android:pathData="M24,2a22,22 0 1,1 0,44a22,22 0 1,1 0,-44z" />
+    <path android:fillColor="#ffffff" android:pathData="M14,13h20a2,2 0 0 1 2,2v18a2,2 0 0 1 -2,2h-20a2,2 0 0 1 -2,-2v-18a2,2 0 0 1 2,-2z" />
+    <path android:fillColor="#1d7a46" android:pathData="M12,19h24v1.6h-24zM12,25h24v1.6h-24zM20,13h1.6v22h-1.6zM28,13h1.6v22h-1.6z" />
+</vector>
