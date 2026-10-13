@@ -1,0 +1,371 @@
+/* OfficeHere Mobil kabuğu: masaüstü belirteçleri (tokens.css, material.css) üzerine dokunmatik yerleşim. */
+
+:root {
+  --m-bar-h: 56px;
+  --m-toolbar-h: 56px;
+  --m-touch: 44px;
+  --m-safe-top: env(safe-area-inset-top, 0px);
+  --m-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --m-radius: 14px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overscroll-behavior: none;
+}
+
+body {
+  background: var(--oh-canvas-bg);
+  color: var(--oh-text);
+  font-family: var(--oh-font-ui);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+
+.m-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  background: var(--oh-canvas-bg);
+}
+
+.m-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.m-loading {
+  display: grid;
+  place-items: center;
+  height: 100dvh;
+  color: var(--oh-text-muted);
+}
+
+/* Üst çubuk: uygulama renginde. */
+.m-appbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--m-bar-h);
+  padding: var(--m-safe-top) 6px 0;
+  background: var(--oh-titlebar-bg);
+  color: var(--oh-titlebar-fg);
+  flex: none;
+  position: relative;
+  z-index: 5;
+}
+
+.m-appbar-title {
+  flex: 1;
+  min-width: 0;
+  padding: 0 6px;
+}
+
+.m-appbar-title h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.m-appbar-sub {
+  font-size: 12px;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.m-appbar-actions {
+  display: flex;
+  align-items: center;
+}
+
+.m-iconbtn {
+  display: inline-grid;
+  place-items: center;
+  width: var(--m-touch);
+  height: var(--m-touch);
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
+.m-iconbtn:active,
+.m-iconbtn.is-active {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+}
+
+.m-iconbtn:disabled {
+  opacity: 0.4;
+}
+
+/* Alt araç çubuğu. */
+.m-toolbar {
+  flex: none;
+  background: var(--oh-ribbon-bg);
+  border-top: 1px solid var(--oh-ribbon-border);
+  padding-bottom: var(--m-safe-bottom);
+  z-index: 5;
+}
+
+.m-toolbar-scroll {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: var(--m-toolbar-h);
+  padding: 0 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.m-toolbar-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.m-toolbtn {
+  flex: none;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: var(--m-touch);
+  height: var(--m-touch);
+  padding: 0 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--oh-text);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.m-toolbtn.has-label {
+  height: 52px;
+}
+
+.m-toolbtn svg {
+  color: var(--oh-icon, var(--oh-text));
+}
+
+.m-toolbtn.is-active {
+  background: var(--oh-accent-soft);
+  color: var(--oh-accent);
+}
+
+.m-toolbtn.is-active svg {
+  color: var(--oh-accent);
+}
+
+.m-toolbtn:disabled {
+  opacity: 0.4;
+}
+
+/* Alttan açılan panel (cam yüzey). */
+.m-sheet-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 32%);
+  z-index: 40;
+  animation: oh-fade-in 0.16s var(--oh-ease-out, ease-out);
+}
+
+.m-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 72dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--oh-glass-bg, var(--oh-menu-bg));
+  -webkit-backdrop-filter: var(--oh-glass-filter, none);
+  backdrop-filter: var(--oh-glass-filter, none);
+  border-radius: var(--m-radius) var(--m-radius) 0 0;
+  box-shadow: var(--oh-float-shadow, 0 -6px 24px rgb(0 0 0 / 18%));
+  padding-bottom: var(--m-safe-bottom);
+  z-index: 41;
+  animation: m-sheet-in 0.2s var(--oh-ease-out, ease-out);
+}
+
+.m-sheet.is-modeless {
+  max-height: 46dvh;
+}
+
+@keyframes m-sheet-in {
+  from {
+    translate: 0 24px;
+    opacity: 0;
+  }
+}
+
+.m-sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 0 16px;
+  position: relative;
+}
+
+.m-sheet-grip {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 36px;
+  height: 4px;
+  margin-left: -18px;
+  border-radius: 2px;
+  background: var(--oh-border-strong);
+}
+
+.m-sheet-head h2 {
+  flex: 1;
+  margin: 10px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.m-sheet-body {
+  overflow: auto;
+  padding: 8px 12px 14px;
+}
+
+.m-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 0 12px 6px;
+  scrollbar-width: none;
+}
+
+.m-tab {
+  flex: none;
+  height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  color: var(--oh-text);
+  font: inherit;
+  font-size: 14px;
+}
+
+.m-tab.is-on {
+  background: var(--oh-accent);
+  color: var(--oh-accent-fg);
+}
+
+/* Düğmeler. */
+.m-btn {
+  min-height: var(--m-touch);
+  padding: 0 18px;
+  border: 1px solid var(--oh-border);
+  border-radius: 10px;
+  background: var(--oh-surface);
+  color: var(--oh-text);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.m-btn.is-primary {
+  background: var(--oh-accent);
+  border-color: var(--oh-accent);
+  color: var(--oh-accent-fg);
+}
+
+.m-btn.is-danger {
+  color: #c42b1c;
+}
+
+/* Bildirim ve onay. */
+.m-toasts {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(var(--m-toolbar-h) + var(--m-safe-bottom) + 12px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  z-index: 60;
+}
+
+.m-toast {
+  max-width: 100%;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--oh-text) 88%, transparent);
+  color: var(--oh-canvas-bg);
+  font-size: 14px;
+  box-shadow: var(--oh-float-shadow, 0 6px 18px rgb(0 0 0 / 22%));
+  animation: oh-fade-in 0.16s var(--oh-ease-out, ease-out);
+}
+
+.m-toast.is-error {
+  background: #c42b1c;
+  color: #fff;
+}
+
+.m-toast.is-success {
+  background: #107c10;
+  color: #fff;
+}
+
+.m-confirm {
+  position: fixed;
+  left: 20px;
+  right: 20px;
+  top: 50%;
+  translate: 0 -50%;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 18px 18px 14px;
+  border-radius: var(--m-radius);
+  background: var(--oh-surface);
+  color: var(--oh-text);
+  box-shadow: var(--oh-dialog-shadow);
+  z-index: 61;
+}
+
+.m-confirm h2 {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+
+.m-confirm p {
+  margin: 0 0 16px;
+  color: var(--oh-text-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.m-confirm-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.oh-hidden-input {
+  position: fixed;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}

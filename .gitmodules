@@ -1,0 +1,3 @@
+[submodule "vendor/officehere"]
+	path = vendor/officehere
+	url = https://github.com/fyildirim-debug/officehere

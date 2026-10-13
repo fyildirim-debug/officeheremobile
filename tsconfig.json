@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noEmit": true,
+    "types": ["vite/client", "vitest/globals"],
+    "paths": {
+      "@officehere/ui": ["./vendor/officehere/packages/ui/src/index.ts"],
+      "@officehere/core": ["./vendor/officehere/packages/core/src/index.ts"],
+      "@officehere/formula": ["./vendor/officehere/packages/formula/src/index.ts"],
+      "@belge/*": ["./vendor/officehere/apps/belge/src/*"],
+      "@tablo/*": ["./vendor/officehere/apps/tablo/src/*"],
+      "@sunum/*": ["./vendor/officehere/apps/sunum/src/*"]
+    }
+  },
+  "include": ["src", "test", "e2e", "vite.config.ts", "playwright.config.ts", "capacitor.config.ts"]
+}
