@@ -142,7 +142,7 @@ test.describe("yazdır / PDF", () => {
     expect(b.kok).toBe(".print-root");
     expect(b.sayfa).toBe(7);
     expect(b.sinif).toContain("is-printing");
-    expect(b.pageCss).toMatch(/@page \{ size: [\d.]+cm [\d.]+cm; margin: 0; \}/);
+    expect(b.pageCss).toMatch(/@page \{ size: [\d.]+(cm|in) [\d.]+(cm|in); margin: 0; \}/);
     await expect(page.locator(".print-root")).toHaveCount(0);
     await expect(page.locator("html")).not.toHaveClass(/is-printing/);
   });

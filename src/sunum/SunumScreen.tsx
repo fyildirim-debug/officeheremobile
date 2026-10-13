@@ -31,7 +31,9 @@ import type { Color } from "@sunum/model/types";
 import "@sunum/styles/slide.css";
 import "@sunum/styles/show.css";
 import "@sunum/styles/print.css";
-import { PrintRoot } from "@sunum/app/exporting";
+import { PrintRoot } from "@sunum/app/PrintPages";
+import { buildPrintPages, paperSize, printSlideIndices } from "@sunum/app/printLayout";
+import { DEFAULT_PRINT_SETTINGS } from "@sunum/io/presProps";
 import "./sunum.css";
 import { AppBar } from "../shell/AppBar";
 import { Sheet } from "../shell/Toolbar";
@@ -154,6 +156,9 @@ function Sunum({ doc, platform, onClose, dark, oturum, acilan }: SunumProps) {
   const [teklif, setTeklif] = useState(!!acilan.gosteri);
   const [kaydediliyor, setKaydediliyor] = useState(false);
   const [yazdiriliyor, setYazdiriliyor] = useState(false);
+  // Yazdırma: sunudaki kayıtlı ayarlar (yoksa tam sayfa slaytlar) ve kâğıt boyutu.
+  const baskiAyari = pres.printSettings ?? DEFAULT_PRINT_SETTINGS;
+  const baskiBoyutu = paperSize(pres, baskiAyari.what, baskiAyari.orientation);
   const genis = useMedya("(min-width: 600px)");
   const uyarildi = useRef(false);
 
@@ -575,11 +580,14 @@ function Sunum({ doc, platform, onClose, dark, oturum, acilan }: SunumProps) {
       {yazdiriliyor && (
         <PrintRoot
           pres={pres}
+          pages={buildPrintPages(pres, baskiAyari, printSlideIndices(pres, baskiAyari, { kind: "all" }, s.slideIdx, []))}
+          size={baskiBoyutu}
+          settings={baskiAyari}
           onDone={() => setYazdiriliyor(false)}
           onReady={async () => {
             if (basildi.current) return;
             basildi.current = true;
-            await yazdirmaAc(platform, { name: baseOf(dosya.ad), page: { width: inc(pres.width), height: inc(pres.height) } });
+            await yazdirmaAc(platform, { name: baseOf(dosya.ad), page: { width: inc(baskiBoyutu.w), height: inc(baskiBoyutu.h) } });
           }}
         />
       )}
