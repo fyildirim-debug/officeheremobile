@@ -1,0 +1,161 @@
+name: Sürüm
+
+# Elle tetiklenir ("surum" girişi, ör. 0.2.0 ya da v0.2.0): imzalı Android APK + AAB üretip
+# GitHub Sürümüne (etiket v<surum>, çalışılan commit üzerinde) yükler.
+#
+# İmza anahtarı depo gizli değerlerinden okunur:
+#   ANDROID_KEYSTORE_BASE64   keystore dosyasının base64 hali (base64 -w0 officehere.jks)
+#   ANDROID_KEYSTORE_PASSWORD keystore parolası
+#   ANDROID_KEY_ALIAS         anahtar adı
+#   ANDROID_KEY_PASSWORD      anahtar parolası
+# Anahtar üretmek için:
+#   keytool -genkeypair -v -keystore officehere.jks -alias officehere -keyalg RSA -keysize 4096 -validity 10000
+# Gizli değerler yoksa paketler İMZASIZ üretilir (dosya adında "-imzasiz") ve sürüm taslak olarak açılır.
+on:
+  workflow_dispatch:
+    inputs:
+      surum:
+        description: "Sürüm (ör. 0.2.0 ya da v0.2.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: surum-${{ inputs.surum }}
+  cancel-in-progress: false
+
+jobs:
+  android:
+    name: Android paketi (APK + AAB) ve GitHub Sürümü
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - id: surum
+        name: Sürümü çözümle
+        shell: bash
+        env:
+          GIRDI: ${{ inputs.surum }}
+        run: |
+          s="${GIRDI#v}"
+          if ! [[ "$s" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "::error title=Geçersiz sürüm::'$GIRDI' MAJOR.MINOR.PATCH biçiminde olmalı (ör. 0.2.0)."
+            exit 1
+          fi
+          # versionCode sürümle birlikte artar: 0.2.0 → 2000, 1.4.12 → 1004012.
+          kod=$(( BASH_REMATCH[1] * 1000000 + BASH_REMATCH[2] * 1000 + BASH_REMATCH[3] ))
+          {
+            echo "surum=$s"
+            echo "etiket=v$s"
+            echo "kod=$kod"
+          } >> "$GITHUB_OUTPUT"
+          echo "Sürüm $s (versionCode $kod)"
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Sürümü package.json ve Android'e işle
+        env:
+          SURUM: ${{ steps.surum.outputs.surum }}
+          KOD: ${{ steps.surum.outputs.kod }}
+        run: |
+          npm pkg set version="$SURUM"
+          sed -i -E "s/^([[:space:]]*versionCode = )[0-9]+/\1$KOD/; s/^([[:space:]]*versionName = )\"[^\"]*\"/\1\"$SURUM\"/" android/app/build.gradle
+          grep -q "versionCode = $KOD" android/app/build.gradle
+          grep -q "versionName = \"$SURUM\"" android/app/build.gradle
+
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-36 build-tools;36.0.0
+      - uses: gradle/actions/setup-gradle@v4
+      - run: pnpm exec cap sync android
+
+      - id: imza
+        name: İmza anahtarı
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$ANDROID_KEYSTORE_PASSWORD" ] || [ -z "$ANDROID_KEY_ALIAS" ] || [ -z "$ANDROID_KEY_PASSWORD" ]; then
+            echo "::warning title=İmza anahtarı yok::ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS ve ANDROID_KEY_PASSWORD gizli değerlerinin hepsi tanımlı değil. Paketler İMZASIZ üretilecek: cihaza kurulamaz ve Play Console'a yüklenemez; sürüm taslak olarak açılır."
+            echo "imzali=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/officehere.jks" 2>/dev/null || [ ! -s "$RUNNER_TEMP/officehere.jks" ]; then
+            echo "::error title=Geçersiz anahtar::ANDROID_KEYSTORE_BASE64 çözülemedi (base64 -w0 officehere.jks çıktısı olmalı)."
+            exit 1
+          fi
+          echo "OH_KEYSTORE_FILE=$RUNNER_TEMP/officehere.jks" >> "$GITHUB_ENV"
+          echo "imzali=true" >> "$GITHUB_OUTPUT"
+
+      - name: Derle (assembleRelease + bundleRelease)
+        working-directory: android
+        env:
+          OH_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          OH_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          OH_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease bundleRelease --no-daemon
+
+      - name: Paketleri adlandır ve doğrula
+        env:
+          SURUM: ${{ steps.surum.outputs.surum }}
+          IMZALI: ${{ steps.imza.outputs.imzali }}
+        run: |
+          mkdir -p paketler
+          out=android/app/build/outputs
+          if [ "$IMZALI" = "true" ]; then
+            ek=""
+            apk="$out/apk/release/app-release.apk"
+            "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$apk"
+          else
+            ek="-imzasiz"
+            apk="$out/apk/release/app-release-unsigned.apk"
+          fi
+          cp "$apk" "paketler/OfficeHere-${SURUM}-android${ek}.apk"
+          cp "$out/bundle/release/app-release.aab" "paketler/OfficeHere-${SURUM}-android${ek}.aab"
+          (cd paketler && sha256sum OfficeHere-* > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          rm -f "$RUNNER_TEMP/officehere.jks"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: officehere-android-${{ steps.surum.outputs.surum }}
+          path: paketler/*
+          if-no-files-found: error
+
+      # Sürüm notları docs/surumler/<etiket>.md dosyasından; yoksa GitHub otomatik üretir.
+      - id: notlar
+        env:
+          ETIKET: ${{ steps.surum.outputs.etiket }}
+        run: |
+          if [ -f "docs/surumler/${ETIKET}.md" ]; then echo "yol=docs/surumler/${ETIKET}.md" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.surum.outputs.etiket }}
+          target_commitish: ${{ github.sha }}
+          name: OfficeHere Mobil ${{ steps.surum.outputs.etiket }}
+          files: paketler/*
+          body_path: ${{ steps.notlar.outputs.yol }}
+          generate_release_notes: ${{ steps.notlar.outputs.yol == '' }}
+          draft: ${{ steps.imza.outputs.imzali != 'true' }}
+          fail_on_unmatched_files: true

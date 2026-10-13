@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  denetim:
+    name: Tip denetimi, test, derleme, uçtan uca
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7
+
+  android:
+    name: Android hata ayıklama APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-36 build-tools;36.0.0
+      - uses: gradle/actions/setup-gradle@v4
+      # Web paketini android/app/src/main/assets/public altına kopyalar, eklenti listesini günceller.
+      - run: pnpm exec cap sync android
+      - name: Derle ve denetle (assembleDebug + uygulama lint)
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug :app:lintDebug --no-daemon
+      - name: APK adı
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk "OfficeHere-${GITHUB_SHA::7}-debug.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: officehere-android-debug
+          path: OfficeHere-*-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-lint
+          path: android/app/build/reports/lint-results-*.html
+          if-no-files-found: ignore
+          retention-days: 7

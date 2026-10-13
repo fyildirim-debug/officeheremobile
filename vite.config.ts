@@ -26,6 +26,8 @@ export default defineConfig({
     // Alt modüldeki bileşenler de aynı React kopyasını kullanmalı.
     dedupe: ["react", "react-dom", "@tiptap/pm", "@tiptap/core"],
   },
+  // Android parçası ilk yüklendiğinde bağımlılık iyileştirmesi sayfayı yenilemesin.
+  optimizeDeps: { include: ["@capacitor/app", "@capacitor/filesystem", "@capacitor/keyboard", "@capacitor/share", "@capacitor/status-bar"] },
   server: { port: 5180, strictPort: true, host: true },
   preview: { port: 5180, strictPort: true, host: true },
   build: { target: "es2022", chunkSizeWarningLimit: 6000 },

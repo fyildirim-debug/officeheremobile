@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Masaüstü "Renkli" temanın başlık çubuğu rengi. -->
+    <color name="oh_brand">#3D3D8F</color>
+    <!-- Pencere ve WebView zemini (CSS oh-canvas-bg): ilk boyamada parlama olmasın. -->
+    <color name="oh_window">#E6E6E6</color>
+    <!-- Açılış ekranı zemini. -->
+    <color name="oh_splash">#F3F3F3</color>
+</resources>

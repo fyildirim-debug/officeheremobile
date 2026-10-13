@@ -49,7 +49,8 @@ export function useTheme(): { theme: UiTheme; dark: boolean; setTheme: (t: UiThe
   }, []);
   const dark = theme === "dark" || theme === "black" || (theme === "system" && sys);
   useEffect(() => {
-    applyUiTheme(theme);
+    // "Sistem" somut temaya çevrilir: masaüstü stillerinin koyu kuralları data-oh-theme="dark" seçicisine bağlı.
+    applyUiTheme(theme === "system" ? (dark ? "dark" : "colorful") : theme);
     document.documentElement.toggleAttribute("data-oh-dark", dark);
     // Durum çubuğu ve tarayıcı kabuğu rengi.
     const meta = document.querySelector('meta[name="theme-color"]');

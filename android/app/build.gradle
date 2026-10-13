@@ -1,0 +1,79 @@
+apply plugin: 'com.android.application'
+
+// Yayın imzası: ortam değişkenlerinden (CI: .github/workflows/release.yml) ya da
+// android/keystore.properties dosyasından (yerel; depoya girmez). Yoksa imzasız yayın paketi.
+def imza = [:]
+def imzaDosyasi = rootProject.file('keystore.properties')
+if (imzaDosyasi.exists()) {
+    def p = new Properties()
+    imzaDosyasi.withInputStream { p.load(it) }
+    imza = [store: p.storeFile, storePass: p.storePassword, alias: p.keyAlias, keyPass: p.keyPassword]
+}
+if (System.getenv('OH_KEYSTORE_FILE')) {
+    imza = [
+        store: System.getenv('OH_KEYSTORE_FILE'),
+        storePass: System.getenv('OH_KEYSTORE_PASSWORD'),
+        alias: System.getenv('OH_KEY_ALIAS'),
+        keyPass: System.getenv('OH_KEY_PASSWORD'),
+    ]
+}
+def imzaVar = imza.store && imza.storePass && imza.alias && imza.keyPass
+
+android {
+    namespace = "com.officehere.mobile"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId = "com.officehere.mobile"
+        minSdk = rootProject.ext.minSdkVersion
+        targetSdk = rootProject.ext.targetSdkVersion
+        // release.yml bu iki satırı sürüm girdisine göre günceller.
+        versionCode = 1
+        versionName = "0.1.0"
+    }
+    androidResources {
+        // Paketlenmeyen web varlıkları (Capacitor şablonundaki değer).
+        ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+    }
+    signingConfigs {
+        if (imzaVar) {
+            release {
+                storeFile = file(imza.store)
+                storePassword = imza.storePass
+                keyAlias = imza.alias
+                keyPassword = imza.keyPass
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled = false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (imzaVar) signingConfig = signingConfigs.release
+        }
+    }
+    lint {
+        // Lint raporu: app/build/reports/lint-results-*.html
+        abortOnError = true
+        checkReleaseBuilds = true
+        lintConfig = file('lint.xml')
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.activity:activity:$androidxActivityVersion"
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.core:core:$androidxCoreVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'

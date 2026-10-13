@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Uygulama teması: sistemin açık/koyu kipine uyar (WebView'in prefers-color-scheme değeri de buradan gelir). -->
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/oh_brand</item>
+        <item name="colorPrimaryDark">@color/oh_brand</item>
+        <item name="colorAccent">@color/oh_brand</item>
+        <item name="android:windowBackground">@color/oh_window</item>
+    </style>
+
+    <!-- Açılıştan sonraki tema (Capacitor BridgeActivity bu adı uygular). -->
+    <style name="AppTheme.NoActionBar" parent="AppTheme">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:background">@null</item>
+    </style>
+
+    <!-- Açılış ekranı: Android 12+ SplashScreen API, eski sürümlerde core-splashscreen aynı görünümü verir. -->
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/oh_splash</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+        <item name="android:windowLightStatusBar">@bool/oh_light_bars</item>
+    </style>
+</resources>

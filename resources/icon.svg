@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- OfficeHere takım simgesi (masaüstü apps/desktop/scripts/icons.mjs SUITE ile aynı). -->
+  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a4aa6"/><stop offset="1" stop-color="#30307a"/></linearGradient></defs>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#g)"/>
+  <rect x="13" y="15" width="38" height="8" rx="2.5" fill="#6d9bff"/>
+  <rect x="13" y="28" width="38" height="8" rx="2.5" fill="#48c98a"/>
+  <rect x="13" y="41" width="38" height="8" rx="2.5" fill="#ff8a66"/>
+</svg>

@@ -1,0 +1,366 @@
+/* Başlangıç ekranı. */
+.m-home-content {
+  padding: 4px 16px calc(24px + var(--m-safe-bottom));
+}
+
+.m-home-greeting {
+  margin: 18px 4px 6px;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.m-home-section h3 {
+  margin: 18px 4px 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--oh-text-muted);
+}
+
+/* Yeni: üç boş şablon kutucuğu. */
+.m-home-new {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.m-home-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--oh-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.m-home-tile-preview {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 118px;
+  border-radius: 10px;
+  background: var(--oh-surface);
+  border: 1px solid var(--oh-border);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
+  overflow: hidden;
+  transition: transform 0.12s var(--oh-ease-out, ease-out);
+}
+
+.m-home-tile:active .m-home-tile-preview {
+  transform: scale(0.97);
+  border-color: var(--oh-accent);
+}
+
+.m-home-preview {
+  display: block;
+  max-width: 78%;
+  max-height: 84%;
+  border-radius: 2px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 16%);
+}
+
+.m-home-tile.is-square .m-home-preview {
+  max-width: 84%;
+}
+
+.m-home-tile.is-landscape .m-home-preview {
+  max-width: 90%;
+}
+
+.m-home-tile-badge {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: grid;
+  place-items: center;
+}
+
+.m-home-tile-label {
+  font-size: 13px;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.m-home-paper {
+  fill: #fff;
+}
+
+.m-home-line {
+  stroke: #e1e1e1;
+}
+
+.m-home-dash {
+  stroke: #c8c8c8;
+}
+
+.m-home-text {
+  fill: #e4e4e4;
+}
+
+/* Koyu temada sayfa önizlemeleri de koyu. */
+:root[data-oh-dark] .m-home-paper {
+  fill: #1f1f1f;
+}
+
+:root[data-oh-dark] .m-home-line {
+  stroke: #3d3d3d;
+}
+
+:root[data-oh-dark] .m-home-dash {
+  stroke: #5c5c5c;
+}
+
+:root[data-oh-dark] .m-home-text {
+  fill: #3a3a3a;
+}
+
+:root[data-oh-dark] .m-home-preview {
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 10%), 0 1px 4px rgb(0 0 0 / 50%);
+}
+
+/* Aç kartı. */
+.m-home-open {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--oh-border);
+  border-radius: var(--m-radius);
+  background: var(--oh-surface);
+  color: var(--oh-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.m-home-open:active {
+  background: var(--oh-accent-soft);
+  border-color: var(--oh-accent);
+}
+
+.m-home-open-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--oh-accent);
+  color: var(--oh-accent-fg, #fff);
+  flex: none;
+}
+
+.m-home-open-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.m-home-open-text strong {
+  font-size: 16px;
+}
+
+.m-home-open-text span {
+  font-size: 13px;
+  color: var(--oh-text-muted);
+}
+
+/* Son kullanılanlar. */
+.m-home-search {
+  width: 100%;
+  box-sizing: border-box;
+  height: 44px;
+  margin-bottom: 10px;
+  padding: 0 14px;
+  border: 1px solid var(--oh-border);
+  border-radius: 22px;
+  background: var(--oh-surface);
+  color: var(--oh-text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.m-home-search:focus {
+  outline: 2px solid var(--oh-accent);
+  outline-offset: -1px;
+}
+
+.m-home-filters {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: none;
+}
+
+.m-home-empty {
+  margin: 18px 4px;
+  color: var(--oh-text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.m-home-recent {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.m-home-item {
+  display: flex;
+  align-items: center;
+  border-radius: 12px;
+}
+
+.m-home-item-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 60px;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--oh-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.m-home-item-main:active {
+  background: var(--oh-accent-soft);
+}
+
+.m-home-item-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  flex: none;
+}
+
+.m-home-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.m-home-item-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+}
+
+.m-home-item-name > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m-home-pin {
+  flex: none;
+  color: var(--m-accent-text);
+}
+
+.m-home-item-meta {
+  font-size: 12.5px;
+  color: var(--oh-text-muted);
+}
+
+.m-home-credit .oh-credit.is-footer {
+  margin-top: 28px;
+  text-align: center;
+  font-size: 12.5px;
+}
+
+/* Ayarlar. */
+.m-settings h3 {
+  margin: 10px 4px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--oh-text-muted);
+}
+
+.m-settings-note {
+  margin: 6px 12px 14px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.m-theme-swatch {
+  flex: none !important;
+  display: flex;
+  flex-direction: column;
+  width: 34px;
+  height: 26px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--oh-border);
+}
+
+.m-theme-swatch > span:first-child {
+  height: 8px;
+}
+
+.m-theme-swatch > span:last-child {
+  flex: 1;
+}
+
+.m-about {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 12px;
+}
+
+.m-about > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.m-about strong {
+  font-size: 16px;
+}
+
+.m-settings .oh-credit {
+  margin: 6px 12px 8px;
+  font-size: 13.5px;
+}
+
+.m-settings-notices pre {
+  margin: 8px 4px 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--oh-surface);
+  border: 1px solid var(--oh-border);
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Geniş ekran (tablet, yatay): içerik ortada sınırlı. */
+@media (min-width: 720px) {
+  .m-home-content > * {
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .m-home-tile-preview {
+    height: 160px;
+  }
+}

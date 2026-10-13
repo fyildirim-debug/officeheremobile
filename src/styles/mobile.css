@@ -7,6 +7,14 @@
   --m-safe-top: env(safe-area-inset-top, 0px);
   --m-safe-bottom: env(safe-area-inset-bottom, 0px);
   --m-radius: 14px;
+  /* Açık zemin üstünde vurgu rengi metin; koyu temada açılır. */
+  --m-accent-text: var(--oh-accent);
+}
+
+/* Koyu temada yumuşak vurgu zemini koyu kalmalı (masaüstü değeri açık renk). */
+:root[data-oh-dark][data-app] {
+  --oh-accent-soft: color-mix(in srgb, var(--oh-accent) 34%, transparent);
+  --m-accent-text: color-mix(in srgb, var(--oh-accent) 50%, white);
 }
 
 html,
@@ -164,11 +172,11 @@ body {
 
 .m-toolbtn.is-active {
   background: var(--oh-accent-soft);
-  color: var(--oh-accent);
+  color: var(--m-accent-text);
 }
 
 .m-toolbtn.is-active svg {
-  color: var(--oh-accent);
+  color: var(--m-accent-text);
 }
 
 .m-toolbtn:disabled {
@@ -368,4 +376,90 @@ body {
   width: 1px;
   height: 1px;
   opacity: 0;
+}
+
+/* Liste satırları (panellerde seçenekler). */
+.m-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.m-list-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 48px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--oh-text);
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.m-list-item > svg {
+  flex: none;
+  color: var(--oh-icon, var(--oh-text-muted));
+}
+
+.m-list-item > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.m-list-item:active:not(.is-static),
+.m-list-item.is-on {
+  background: var(--oh-accent-soft);
+}
+
+.m-list-item.is-static {
+  cursor: default;
+  color: var(--oh-text-muted);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.m-list-item.is-danger,
+.m-list-item.is-danger > svg {
+  color: #c42b1c;
+}
+
+:root[data-oh-dark] .m-list-item.is-danger,
+:root[data-oh-dark] .m-list-item.is-danger > svg {
+  color: #ff99a4;
+}
+
+.m-list-check {
+  flex: none;
+  color: var(--m-accent-text) !important;
+}
+
+/* Süzgeç çipleri. */
+.m-chip {
+  flex: none;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--oh-border);
+  border-radius: 17px;
+  background: var(--oh-surface);
+  color: var(--oh-text);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.m-chip.is-on {
+  border-color: var(--m-accent-text);
+  background: var(--oh-accent-soft);
+  color: var(--m-accent-text);
+  font-weight: 600;
+}
+
+.m-muted {
+  color: var(--oh-text-muted);
 }

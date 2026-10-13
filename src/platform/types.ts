@@ -15,6 +15,11 @@ export interface OpenedDoc {
   uri?: string;
 }
 
+export interface SaveOptions {
+  /** Farklı kaydet: aynı ad olsa da kullanıcıya konum sorulur. */
+  saveAs?: boolean;
+}
+
 /** Kaydetme sonucu. */
 export interface SavedFile {
   name: string;
@@ -35,8 +40,12 @@ export interface Platform {
   native: boolean;
   /** Kullanıcıya dosya seçtirir; iptalde null. accept: ".docx,.odt" gibi. */
   pickFile(accept: string): Promise<OpenedDoc | null>;
-  /** Belgeyi cihaza kaydeder (Belgeler/OfficeHere); web'de indirir. */
-  saveFile(name: string, bytes: Uint8Array, mime: string): Promise<SavedFile>;
+  /**
+   * Belgeyi kaydeder: açık belgenin konumuna yazar, yeni belgede konum sorar; web'de indirir.
+   * saveAs: aynı ad olsa da konum sorulur (Farklı kaydet). Kullanıcı vazgeçerse
+   * name === "AbortError" olan bir hata fırlatılır (hata olarak gösterilmez).
+   */
+  saveFile(name: string, bytes: Uint8Array, mime: string, opts?: SaveOptions): Promise<SavedFile>;
   /** Paylaşım sayfasını açar (WhatsApp, e-posta, Drive…); web'de indirir. */
   shareFile(name: string, bytes: Uint8Array, mime: string): Promise<void>;
   /** Son kullanılanlar (en yeni önce, sabitlenenler başta). */

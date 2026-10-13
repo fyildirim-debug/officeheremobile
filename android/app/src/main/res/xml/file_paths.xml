@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Paylaşma (@capacitor/share) yalnız önbellekteki paylaşım kopyalarını dışarı açar. -->
+<paths>
+    <cache-path name="paylasim" path="oh-share/" />
+</paths>
