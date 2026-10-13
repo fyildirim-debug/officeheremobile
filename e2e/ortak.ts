@@ -1,4 +1,6 @@
 // Uçtan uca testlerde ortak yardımcılar.
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, type Download, type Page } from "@playwright/test";
@@ -36,4 +38,15 @@ export async function download(page: Page, click: () => Promise<void>): Promise<
   const d = page.waitForEvent("download");
   await click();
   return d;
+}
+
+/**
+ * İndirilen dosyayı yeniden açmak için ASCII yollu geçici dosyaya yazar
+ * (dosya seçici Türkçe karakterli yollarda dosyayı yüklemiyor).
+ */
+export async function saveTemp(d: Download): Promise<string> {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "oh-e2e-"));
+  const file = path.join(dir, d.suggestedFilename().normalize("NFD").replace(/[^\x20-\x7e]/g, "") || "dosya");
+  await d.saveAs(file);
+  return file;
 }

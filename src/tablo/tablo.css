@@ -1,0 +1,772 @@
+/* OfficeHere Mobil — Tablo ekranı (m-tablo-*). Izgara masaüstü çizicisiyle tuvale çizilir. */
+
+.m-tablo {
+  --m-tablo-grid-bg: #ffffff;
+  overflow: hidden;
+}
+
+.m-tablo.is-dark {
+  --m-tablo-grid-bg: #1f1f1f;
+}
+
+/* ---------------- Formül çubuğu ---------------- */
+.m-tablo-fbar {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  background: var(--oh-ribbon-bg);
+  border-bottom: 1px solid var(--oh-ribbon-border);
+  z-index: 4;
+}
+
+.m-tablo-fbar-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 48px;
+  padding: 2px 4px 2px 8px;
+}
+
+.m-tablo-namebox {
+  flex: none;
+  width: 68px;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0 6px;
+  border: 1px solid var(--oh-border);
+  border-radius: 8px;
+  background: var(--oh-surface);
+  color: var(--oh-text);
+  font: 600 14px var(--oh-font-ui);
+  text-align: center;
+}
+
+.m-tablo-namebox:focus {
+  outline: 2px solid var(--oh-accent);
+  outline-offset: -1px;
+  text-align: left;
+}
+
+.m-tablo-fx {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--oh-accent);
+  font: italic 600 17px Georgia, "Times New Roman", serif;
+  cursor: pointer;
+}
+
+.m-tablo-fx:active {
+  background: var(--oh-accent-soft);
+}
+
+.m-tablo-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 36px;
+  max-height: 104px;
+  box-sizing: border-box;
+  padding: 7px 10px;
+  border: 1px solid var(--oh-border);
+  border-radius: 8px;
+  background: var(--oh-surface);
+  color: var(--oh-text);
+  font: 15px/20px var(--oh-font-ui);
+  resize: none;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.m-tablo-input:focus {
+  outline: 2px solid var(--oh-accent);
+  outline-offset: -1px;
+}
+
+.m-tablo-input[readonly] {
+  background: transparent;
+  border-color: transparent;
+}
+
+.m-tablo-input[readonly]:focus {
+  outline: 0;
+}
+
+.m-tablo-input.is-ghost {
+  color: var(--oh-text-muted);
+}
+
+.m-tablo-fbar-btn {
+  flex: none;
+  color: var(--oh-text);
+}
+
+.m-tablo-fbar-btn.is-ok {
+  color: var(--oh-accent);
+}
+
+/* Öneriler, ipucu ve sembol tuşları */
+.m-tablo-fbar-acc {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 8px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.m-tablo-fbar-acc::-webkit-scrollbar {
+  display: none;
+}
+
+.m-tablo-chip {
+  flex: none;
+  min-width: 40px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--oh-border);
+  border-radius: 18px;
+  background: var(--oh-surface);
+  color: var(--oh-text);
+  font: 15px var(--oh-font-ui);
+  cursor: pointer;
+}
+
+.m-tablo-chip.is-fn {
+  border-color: var(--oh-accent);
+  color: var(--oh-accent);
+  font-weight: 600;
+}
+
+.m-tablo-chip.is-sym {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  padding: 0 10px;
+}
+
+.m-tablo-chip:active {
+  background: var(--oh-accent-soft);
+}
+
+.m-tablo-hint {
+  flex: none;
+  padding: 0 4px;
+  color: var(--oh-text-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.m-tablo-hint b {
+  color: var(--oh-text);
+}
+
+.m-tablo-hint .is-active {
+  color: var(--oh-accent);
+  font-weight: 600;
+}
+
+/* Klavye açıkken düzenleme: formül çubuğu klavyenin hemen üstünde */
+.m-tablo.is-docked > .m-tablo-main {
+  order: 1;
+}
+
+.m-tablo.is-docked > .m-tablo-fbar {
+  order: 2;
+  flex-direction: column-reverse;
+  border-top: 1px solid var(--oh-ribbon-border);
+  border-bottom: 0;
+}
+
+.m-tablo.is-docked > .m-tablo-foot {
+  display: none;
+}
+
+/* ---------------- Izgara ---------------- */
+.m-tablo-main {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--m-tablo-grid-bg);
+}
+
+.m-tablo-grid {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  outline: none;
+}
+
+.m-tablo-canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+}
+
+/* Grafik, resim, şekil, dilimleyici ve özet tablo katmanı yalnız görüntülenir */
+.m-tablo-objects {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.m-tablo-objects,
+.m-tablo-objects * {
+  pointer-events: none !important;
+  cursor: default !important;
+}
+
+.m-tablo-objects .tb-handle {
+  display: none;
+}
+
+.m-tablo-celledit {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 1px 3px;
+  border: 2px solid #107c41;
+  white-space: pre;
+  overflow: hidden;
+  line-height: 1.2;
+  z-index: 5;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 18%);
+}
+
+/* ---------------- Alt satır: seçim bilgisi ve yakınlaştırma ---------------- */
+.m-tablo-foot {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.m-tablo-foot:last-child {
+  padding-bottom: var(--m-safe-bottom);
+}
+
+/* Yatay telefonda bilgi satırı ile sayfa sekmeleri tek satırda: ızgaraya yer kalır */
+@media (orientation: landscape) and (max-height: 560px) {
+  .m-tablo-foot {
+    flex-direction: row-reverse;
+    border-top: 1px solid var(--oh-ribbon-border);
+    background: var(--oh-canvas-bg);
+  }
+
+  .m-tablo-foot .m-tablo-status {
+    flex: 0 1 50%;
+    min-width: 0;
+    border-top: 0;
+    border-left: 1px solid var(--oh-ribbon-border);
+  }
+
+  .m-tablo-foot .m-tablo-tabs {
+    flex: 1 1 50%;
+    min-width: 0;
+    border-top: 0;
+  }
+}
+
+.m-tablo-status {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 0 2px 0 12px;
+  background: var(--oh-statusbar-bg, var(--oh-ribbon-bg));
+  color: var(--oh-statusbar-fg, var(--oh-text));
+  border-top: 1px solid var(--oh-ribbon-border);
+  font-size: 13px;
+}
+
+.m-tablo-status-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.m-tablo-zoom {
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+
+.m-tablo-zoom-value {
+  min-width: 52px;
+  height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: 13px var(--oh-font-ui);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.m-tablo-zoom-value:active {
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+/* ---------------- Sayfa sekmeleri ---------------- */
+.m-tablo-tabs {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  min-height: 44px;
+  background: var(--oh-canvas-bg);
+  border-top: 1px solid var(--oh-ribbon-border);
+}
+
+.m-tablo-tabs-scroll {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 0 4px;
+}
+
+.m-tablo-tabs-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.m-tablo-tab {
+  position: relative;
+  flex: none;
+  min-width: 64px;
+  max-width: 200px;
+  height: 44px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--oh-text-muted);
+  font: 14px var(--oh-font-ui);
+  cursor: pointer;
+}
+
+.m-tablo-tab span {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.m-tablo-tab.is-active {
+  color: var(--oh-accent);
+  font-weight: 600;
+  background: var(--oh-surface);
+  box-shadow: inset 0 -3px 0 var(--oh-accent);
+}
+
+.m-tablo-tab-color {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 4px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.m-tablo-tab-add {
+  flex: none;
+  color: var(--oh-text);
+  border-radius: 10px;
+}
+
+/* ---------------- Araç çubuğu ---------------- */
+.m-tablo-coloricon {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+}
+
+.m-tablo-coloricon i {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  bottom: -3px;
+  height: 4px;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px var(--oh-border);
+}
+
+/* ---------------- Yükleniyor / hata ---------------- */
+.m-tablo-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  color: var(--oh-text-muted);
+  text-align: center;
+}
+
+.m-tablo-state.is-error svg {
+  width: 40px;
+  height: 40px;
+  color: #c42b1c;
+}
+
+.m-tablo-state h2 {
+  margin: 0;
+  color: var(--oh-text);
+  font-size: 18px;
+}
+
+.m-tablo-state p {
+  margin: 0 0 8px;
+  max-width: 420px;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
+/* ---------------- Paneller ---------------- */
+.m-tablo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.m-tablo-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--oh-text);
+  font: 15px var(--oh-font-ui);
+  text-align: left;
+  cursor: pointer;
+}
+
+.m-tablo-item:active,
+.m-tablo-item.is-current {
+  background: var(--oh-accent-soft);
+}
+
+.m-tablo-item:disabled {
+  opacity: 0.45;
+}
+
+.m-tablo-item.is-danger {
+  color: #c42b1c;
+}
+
+:root[data-oh-dark] .m-tablo-item.is-danger {
+  color: #ff8f8f;
+}
+
+.m-tablo-item-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  color: var(--oh-icon, var(--oh-text));
+}
+
+.m-tablo-item.is-danger .m-tablo-item-icon {
+  color: inherit;
+}
+
+.m-tablo-item-label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.m-tablo-item-label small {
+  color: var(--oh-text-muted);
+  font-size: 12.5px;
+  margin-top: 2px;
+}
+
+.m-tablo-check {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1.5px solid var(--oh-border-strong);
+}
+
+.m-tablo-check.is-on {
+  border-color: var(--oh-accent);
+  background: var(--oh-accent);
+  color: var(--oh-accent-fg);
+}
+
+.m-tablo-segment {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.m-tablo-segment .m-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  font-size: 14px;
+}
+
+.m-tablo-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+}
+
+.m-tablo-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 64px;
+  border: 1px solid var(--oh-border);
+  border-radius: 12px;
+  background: var(--oh-surface);
+  color: var(--oh-text);
+  font: 12.5px var(--oh-font-ui);
+  cursor: pointer;
+}
+
+.m-tablo-tile.is-on {
+  border-color: var(--oh-accent);
+  background: var(--oh-accent-soft);
+  color: var(--oh-accent);
+}
+
+.m-tablo-colors h3 {
+  margin: 12px 2px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--oh-text-muted);
+}
+
+/* Telefonda 5, geniş ekranda 10 sütun: tema rengi ile tonu aynı sütunda kalır */
+.m-tablo-swatches {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+@media (min-width: 560px) {
+  .m-tablo-swatches {
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+  }
+}
+
+.m-tablo-swatch {
+  display: grid;
+  place-items: center;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgb(0 0 0 / 14%);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.m-tablo-swatch.is-on {
+  outline: 2px solid var(--oh-accent);
+  outline-offset: 2px;
+}
+
+.m-tablo-autocolor {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 10px;
+  border: 1px solid var(--oh-border);
+  border-radius: 10px;
+  background: var(--oh-surface);
+  color: var(--oh-text);
+  font: 15px var(--oh-font-ui);
+  cursor: pointer;
+}
+
+.m-tablo-autocolor-box {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: #000;
+  border: 1px solid var(--oh-border);
+}
+
+.m-tablo-autocolor-box[data-kind="fill"] {
+  background: linear-gradient(to top right, transparent calc(50% - 1px), #c42b1c calc(50% - 1px), #c42b1c calc(50% + 1px), transparent calc(50% + 1px)), #fff;
+}
+
+:root[data-oh-dark] .m-tablo-autocolor-box[data-kind="color"] {
+  background: #e4e4e4;
+}
+
+/* İşlev listesi */
+.m-tablo-fn {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.m-tablo-search {
+  width: 100%;
+  height: 44px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  border: 1px solid var(--oh-border);
+  border-radius: 10px;
+  background: var(--oh-surface);
+  color: var(--oh-text);
+  font: 15px var(--oh-font-ui);
+}
+
+.m-tablo-search:focus {
+  outline: 2px solid var(--oh-accent);
+  outline-offset: -1px;
+}
+
+.m-tablo-chips {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 -4px;
+  padding: 0 4px;
+}
+
+.m-tablo-chips .m-tab {
+  min-height: 40px;
+}
+
+.m-tablo-fn-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.m-tablo-fn-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 52px;
+  padding: 8px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--oh-separator, var(--oh-border));
+  background: transparent;
+  color: var(--oh-text);
+  text-align: left;
+  font: 14px var(--oh-font-ui);
+  cursor: pointer;
+}
+
+.m-tablo-fn-item:active {
+  background: var(--oh-accent-soft);
+}
+
+.m-tablo-fn-sig {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 13px;
+  color: var(--oh-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.m-tablo-fn-sig b {
+  color: var(--oh-accent);
+  font-family: var(--oh-font-ui);
+  font-size: 14.5px;
+}
+
+.m-tablo-fn-desc {
+  color: var(--oh-text-muted);
+  font-size: 13px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.m-tablo-empty {
+  color: var(--oh-text-muted);
+  text-align: center;
+}
+
+.m-tablo-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.m-tablo-error {
+  margin: 0;
+  color: #c42b1c;
+  font-size: 13.5px;
+}
+
+:root[data-oh-dark] .m-tablo-error {
+  color: #ff8f8f;
+}
+
+/* ---------------- Bul ---------------- */
+.m-tablo-find {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 48px;
+  padding: 2px 4px 2px 10px;
+  background: var(--oh-ribbon-bg);
+  border-bottom: 1px solid var(--oh-ribbon-border);
+}
+
+.m-tablo-find-icon {
+  flex: none;
+  color: var(--oh-text-muted);
+}
+
+.m-tablo-find-input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--oh-text);
+  font: 15px var(--oh-font-ui);
+  outline: none;
+}
+
+.m-tablo-find-count {
+  flex: none;
+  color: var(--oh-text-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  padding: 0 4px;
+}

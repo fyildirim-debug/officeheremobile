@@ -1,0 +1,608 @@
+/* OfficeHere Mobil — Sunum ekranı. Slayt çizimi masaüstü stilleriyle (slide.css, show.css). */
+
+.m-sunum-main {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  grid-template-areas: "sahne" "seri" "not";
+  overflow: hidden;
+}
+
+/* Bildirim şeridi (slayt gösterisi dosyası). */
+.m-sunum-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 14px;
+  background: var(--oh-msg-info-bg);
+  color: var(--oh-text);
+  font-size: 14px;
+  flex: none;
+}
+
+.m-sunum-banner span {
+  flex: 1;
+  min-width: 0;
+}
+
+.m-sunum-banner .m-btn {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 14px;
+}
+
+/* Slayt alanı */
+.m-sunum-sahne {
+  grid-area: sahne;
+  position: relative;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  background: var(--oh-canvas-bg);
+}
+
+:root[data-oh-dark] .m-sunum-sahne {
+  background: color-mix(in srgb, var(--oh-canvas-bg) 90%, #fff);
+}
+
+.m-sunum-kagit {
+  position: absolute;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 22%), 0 0 0 1px rgb(0 0 0 / 6%);
+  background: #fff;
+}
+
+:root[data-oh-dark] .m-sunum-kagit {
+  background: #1e1e1e;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 10%), 0 1px 4px rgb(0 0 0 / 50%);
+}
+
+.m-sunum-kagit.is-kayiyor {
+  transition: transform 0.22s var(--oh-ease-out, ease-out);
+}
+
+/* Slayt çizimi masaüstündeki kalıtılan yazı biçimiyle (gövde 12 px, normal) yapılır; mobil kabuktan etkilenmez. */
+.m-sunum-kagit,
+.m-sunum-thumb-img {
+  font: 400 var(--oh-font-size, 12px) / normal var(--oh-font-ui);
+  letter-spacing: normal;
+  text-align: left;
+  text-transform: none;
+  white-space: normal;
+}
+
+.m-sunum-olcek {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+
+/* Mobilde slayt dışı taşan içerik gösterilmez; yer tutucu simgeleri (ekleme yok) gizli. */
+.m-sunum-olcek .sv-edit {
+  overflow: hidden;
+}
+
+.m-sunum .ph-icons {
+  display: none;
+}
+
+.m-sunum-secim {
+  position: absolute;
+  pointer-events: none;
+  border: solid var(--oh-accent);
+  box-sizing: content-box;
+}
+
+.m-sunum-secim.is-duzenle {
+  border-style: dashed;
+}
+
+.m-sunum-hata {
+  margin: 0 24px;
+  text-align: center;
+  color: var(--oh-text);
+}
+
+.m-sunum-bos {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--oh-text-muted);
+  font-size: 15px;
+}
+
+.m-sunum-sayac {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--oh-surface) 86%, transparent);
+  color: var(--oh-text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.m-sunum-sayac.is-gizli::before {
+  content: "Gizli · ";
+}
+
+/* Küçük resim şeridi */
+.m-sunum-seri {
+  grid-area: seri;
+  display: flex;
+  gap: 10px;
+  padding: 8px 10px calc(8px + 2px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  background: var(--oh-surface-2);
+  border-top: 1px solid var(--oh-separator);
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.m-sunum-seri::-webkit-scrollbar {
+  display: none;
+}
+
+.m-sunum-thumb {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--oh-text-muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  -webkit-touch-callout: none;
+}
+
+.m-sunum-thumb-img {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 0 0 1px var(--oh-border);
+}
+
+:root[data-oh-dark] .m-sunum-thumb-img {
+  background: #1e1e1e;
+}
+
+.m-sunum-thumb.is-current .m-sunum-thumb-img {
+  box-shadow: 0 0 0 2.5px var(--m-accent-text, var(--oh-accent));
+}
+
+.m-sunum-thumb.is-current .m-sunum-thumb-no {
+  color: var(--m-accent-text, var(--oh-accent));
+  font-weight: 600;
+}
+
+.m-sunum-thumb-no {
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  line-height: 14px;
+}
+
+.m-sunum-thumb.is-hidden .m-sunum-thumb-img > :not(.m-sunum-gizli) {
+  opacity: 0.4;
+}
+
+.m-sunum-thumb.is-hidden .m-sunum-thumb-no {
+  text-decoration: line-through;
+}
+
+.m-sunum-gizli {
+  position: absolute;
+  right: 3px;
+  top: 3px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 62%);
+  color: #fff;
+}
+
+.m-sunum-gizli svg {
+  width: 14px;
+  height: 14px;
+}
+
+.m-sunum-ekle {
+  flex: none;
+  align-self: flex-start;
+  display: grid;
+  place-items: center;
+  border: 1.5px dashed var(--oh-border-strong);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--oh-text-muted);
+  cursor: pointer;
+}
+
+/* Notlar */
+.m-sunum-notlar {
+  grid-area: not;
+  background: var(--oh-surface);
+  border-top: 1px solid var(--oh-separator);
+  min-width: 0;
+}
+
+.m-sunum-notlar-bas {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 8px 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--oh-text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.m-sunum-notlar-bas b {
+  font-weight: 600;
+  flex: none;
+}
+
+.m-sunum-notlar-bas span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--oh-text-muted);
+}
+
+.m-sunum-notlar-bas svg {
+  flex: none;
+  color: var(--oh-icon);
+}
+
+.m-sunum-notlar-govde {
+  max-height: 30dvh;
+  overflow: auto;
+  padding: 0 14px 12px;
+}
+
+.m-sunum-notlar-metin {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--oh-text);
+}
+
+.m-sunum-notlar-metin.is-bos {
+  color: var(--oh-text-muted);
+}
+
+.m-sunum-notlar textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 96px;
+  max-height: 30dvh;
+  resize: none;
+  padding: 8px 10px;
+  border: 1px solid var(--oh-border);
+  border-radius: 8px;
+  background: var(--oh-surface-2);
+  color: var(--oh-text);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.m-sunum-notlar textarea:focus {
+  outline: 2px solid var(--oh-accent);
+  outline-offset: -1px;
+}
+
+/* Yatay telefon: küçük resimler solda dikey, slayt büyük. */
+@media (orientation: landscape) and (max-height: 560px) {
+  .m-sunum-main {
+    grid-template-columns: 124px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas: "seri sahne" "seri not";
+  }
+
+  .m-sunum-seri {
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    padding: 8px 10px;
+    border-top: 0;
+    border-right: 1px solid var(--oh-separator);
+  }
+
+  .m-sunum-notlar-govde {
+    max-height: 38dvh;
+  }
+}
+
+/* Klavye açıkken (alçak ekran) metin yazarken yalnız slayt ve araç çubuğu kalır. */
+@media (max-height: 560px) {
+  .m-sunum.is-yaziyor .m-sunum-seri,
+  .m-sunum.is-yaziyor .m-sunum-notlar {
+    display: none;
+  }
+}
+
+/* Slaytlar ızgarası (tam ekran) */
+.m-sunum-izgara {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  background: var(--oh-canvas-bg);
+  animation: oh-fade-in 0.16s var(--oh-ease-out, ease-out);
+}
+
+.m-sunum-izgara-govde {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px 14px calc(14px + var(--m-safe-bottom));
+}
+
+.m-sunum-izgara-liste {
+  display: grid;
+  gap: 16px 12px;
+}
+
+.m-sunum-izgara .m-sunum-thumb {
+  font-size: 13px;
+}
+
+/* Alt araç çubuğu ekleri */
+.m-sunum-ayrac {
+  flex: none;
+  width: 1px;
+  height: 28px;
+  margin: 0 4px;
+  background: var(--oh-separator);
+}
+
+.m-sunum-boyut {
+  flex: none;
+  min-width: 28px;
+  text-align: center;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--oh-text);
+}
+
+.m-sunum-boyut.is-pasif {
+  color: var(--oh-text-disabled);
+}
+
+.m-sunum-renkcizgi {
+  position: relative;
+  display: inline-grid;
+}
+
+.m-sunum-renkcizgi i {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  bottom: -1px;
+  height: 4px;
+  border-radius: 1px;
+}
+
+/* Panel listeleri (satırlar ortak .m-list-item) */
+.m-sunum-bilgi {
+  margin: 6px 6px 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--oh-surface-2);
+  color: var(--oh-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.m-sunum-bilgi b {
+  color: var(--oh-text);
+  font-weight: 600;
+}
+
+.m-sunum-menuayrac {
+  height: 1px;
+  margin: 6px 6px;
+  background: var(--oh-separator);
+}
+
+/* Renk paleti */
+.m-sunum-palet h3 {
+  margin: 8px 2px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--oh-text-muted);
+}
+
+.m-sunum-palet-izgara {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(44px, 1fr));
+  gap: 8px;
+}
+
+.m-sunum-renk {
+  height: 44px;
+  border: 1px solid rgb(0 0 0 / 18%);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+:root[data-oh-dark] .m-sunum-renk {
+  border-color: rgb(255 255 255 / 22%);
+}
+
+.m-sunum-renk.is-on {
+  box-shadow: 0 0 0 2px var(--oh-surface), 0 0 0 4px var(--oh-accent);
+}
+
+.m-sunum-otomatik {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 10px;
+  padding: 0 10px;
+  border: 1px solid var(--oh-border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--oh-text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.m-sunum-otomatik i {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--oh-text);
+}
+
+/* Hizalama */
+.m-sunum-hiza {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.m-sunum-hiza .m-toolbtn {
+  height: 56px;
+  width: 100%;
+  border: 1px solid var(--oh-border);
+}
+
+/* Düzenler */
+.m-sunum-duzenler {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 12px 10px;
+}
+
+.m-sunum-duzen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--oh-text);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.25;
+  text-align: center;
+  cursor: pointer;
+}
+
+.m-sunum-duzen:active {
+  background: var(--oh-hover);
+}
+
+/* Slayt gösterisi: masaüstü gösterisi tam ekran; dokunma için üst köşe denetimleri. */
+.m-sunum-show .show-root {
+  touch-action: none;
+}
+
+.m-sunum-show .show-toolbar {
+  display: none;
+}
+
+.m-sunum-show-ust {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 3001;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(var(--m-safe-top) + 6px) 8px 0 14px;
+  pointer-events: none;
+  color: #fff;
+  opacity: 0.55;
+  transition: opacity 0.3s;
+}
+
+.m-sunum-show-ust.is-gizli {
+  opacity: 0;
+}
+
+.m-sunum-show-ust > * {
+  pointer-events: auto;
+}
+
+.m-sunum-show-ust span {
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: rgb(0 0 0 / 55%);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.m-sunum-show-ust .m-iconbtn {
+  background: rgb(0 0 0 / 55%);
+  color: #fff;
+}
+
+/* Koyu eşlenen slaytın açık resim zemini (yalnız ekranda) ters çevrilerek koyulaşır; renk tonları korunur. */
+.m-skz .sv-bg,
+.m-skr .pic-clip,
+.m-skr > .sh-geom {
+  filter: invert(0.88) hue-rotate(180deg);
+}
+
+/* Koyu eşlenen slaytta düzenlenen metin (model renkleri özgün kalır; ekranda Belge'nin koyu sayfa kuralı). */
+.m-sk .m-ski .tb-edit,
+.m-sk .m-ski .tb-edit * {
+  -webkit-text-fill-color: #e4e4e4;
+  -webkit-text-fill-color: oklch(from currentColor clamp(l, calc((0.5 - l) * 1000), calc(0.92 - 0.55 * l)) c h);
+  text-decoration-color: oklch(from currentColor clamp(l, calc((0.5 - l) * 1000), calc(0.92 - 0.55 * l)) c h);
+  caret-color: #e4e4e4;
+}
+
+.m-sk .m-ski .tb-edit .tb-p::before {
+  -webkit-text-fill-color: oklch(from currentColor clamp(l, calc((0.5 - l) * 1000), calc(0.92 - 0.55 * l)) c h);
+}
+
+.m-sk .m-ski .tb-edit [style*="background"],
+.m-sk .m-ski .tb-edit [style*="background"] * {
+  -webkit-text-fill-color: currentColor;
+}
+
+.m-sk .tb-edit ::selection {
+  background: rgb(86 156 255 / 45%);
+}

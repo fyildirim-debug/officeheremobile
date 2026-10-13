@@ -19,6 +19,8 @@ export const takmaAdlar = {
 
 export default defineConfig({
   plugins: [react(), lisansBildirimi()],
+  // Paralel e2e sunucuları bağımlılık önbelleğini paylaşmasın.
+  cacheDir: process.env.OH_E2E_PORT ? `node_modules/.vite-${process.env.OH_E2E_PORT}` : undefined,
   // Capacitor dosyaları yerel sunucudan yükler; göreli yol her ortamda çalışır.
   base: "./",
   resolve: {
