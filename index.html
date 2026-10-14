@@ -10,6 +10,46 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Eski Android System WebView'de beyaz ekran yerine anlaşılır uyarı. Bilerek ES5 yazılmıştır
+      // (eski motor da ayrıştırabilsin). Derleme hedefi es2022 + structuredClone/findLast: Chromium 98+
+      // (capacitor.config.ts minWebViewVersion). CSS color-mix()/:has() yoksa (111 öncesi) uyarı
+      // "Yine de devam et" ile kapatılabilir.
+      (function () {
+        var js = true;
+        var css = true;
+        try {
+          js = "noModule" in document.createElement("script") && typeof window.structuredClone === "function" && typeof Array.prototype.findLast === "function";
+          if (js) new Function("class A { static #x = 1; static { A.y = #x in A; } } return A?.y ?? 0;");
+        } catch (e) {
+          // Yalnız sözdizimi desteklenmiyorsa eski say (içerik güvenliği ilkesi eval'i engellerse değil).
+          if (e instanceof SyntaxError) js = false;
+        }
+        try {
+          css = !window.CSS || !CSS.supports || (CSS.supports("color", "color-mix(in srgb, red, blue)") && CSS.supports("selector(:has(a))"));
+        } catch (e) {
+          css = true;
+        }
+        if (js && css) return;
+        var d = document.createElement("div");
+        d.id = "oh-webview-eski";
+        d.setAttribute("role", "alertdialog");
+        d.setAttribute("aria-labelledby", "oh-webview-eski-baslik");
+        d.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;z-index:2147483647;background:#fff;color:#1f1f1f;font:16px/1.5 sans-serif;padding:32px 24px;overflow:auto";
+        d.innerHTML =
+          '<h1 id="oh-webview-eski-baslik" style="font-size:20px;margin:0 0 12px;color:#3d3d8f">Android System WebView güncel değil</h1>' +
+          "<p style=\"margin:0 0 12px\">OfficeHere belgeleri telefonunuzdaki <b>Android System WebView</b> bileşeniyle gösterir. Bu cihazdaki sürüm çok eski olduğu için uygulama düzgün açılamıyor.</p>" +
+          '<p style="margin:0 0 20px">Lütfen Play Store\'dan <b>Android System WebView</b>\'i (ya da Google Chrome\'u) güncelleyip OfficeHere\'i yeniden açın.</p>' +
+          '<a id="oh-webview-guncelle" href="https://play.google.com/store/apps/details?id=com.google.android.webview" style="display:inline-block;background:#3d3d8f;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none">Play Store\'da aç</a>' +
+          (js ? ' <button id="oh-webview-devam" type="button" style="margin-left:8px;padding:12px 16px;border-radius:8px;border:1px solid #888;background:#fff;color:#1f1f1f;font:inherit">Yine de devam et</button>' : "");
+        document.body.appendChild(d);
+        var devam = document.getElementById("oh-webview-devam");
+        if (devam)
+          devam.onclick = function () {
+            d.parentNode.removeChild(d);
+          };
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
