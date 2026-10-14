@@ -27,8 +27,8 @@ android {
         minSdk = rootProject.ext.minSdkVersion
         targetSdk = rootProject.ext.targetSdkVersion
         // release.yml bu iki satırı sürüm girdisine göre günceller.
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 1001
+        versionName = "0.1.1"
     }
     androidResources {
         // Paketlenmeyen web varlıkları (Capacitor şablonundaki değer).
