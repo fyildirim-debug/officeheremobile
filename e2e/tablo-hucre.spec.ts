@@ -55,6 +55,8 @@ test.describe("Tablo hücre işlemleri", () => {
     await expect(page.getByRole("status").filter({ hasText: "Kopyalandı." })).toBeVisible();
     await goTo(page, "C1");
     await arac(page, "Yapıştır").click();
+    // Yapıştırma eşzamansız (pano okunur); bitince yapıştırılan aralık seçili olur.
+    await expect(status(page)).toContainText("Toplam: 11");
     await goTo(page, "C3");
     await expect(status(page)).toHaveText("C3: 6");
     await expect(formulaBar(page)).toHaveValue("=C1*C2");
@@ -64,6 +66,7 @@ test.describe("Tablo hücre işlemleri", () => {
     await arac(page, "Kes").click();
     await goTo(page, "E5");
     await arac(page, "Yapıştır").click();
+    await expect(status(page)).toContainText("Toplam: 11");
     await goTo(page, "E7");
     await expect(formulaBar(page)).toHaveValue("=E5*E6");
     await expect(status(page)).toHaveText("E7: 6");
