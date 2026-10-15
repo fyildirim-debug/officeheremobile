@@ -34,10 +34,11 @@ dosya desteği ve aynı tasarım, dokunmatik ekran için yeniden düzenlenmiş h
 | Uygulama | Açar | Kaydeder |
 | --- | --- | --- |
 | **Belge** | `.docx` `.docm` `.dotx` `.dotm` `.doc` `.odt` `.ott` `.rtf` `.md` `.txt` `.html` | `.docx` `.odt` `.rtf` `.md` `.txt` `.html` |
-| **Tablo** | `.xlsx` `.xlsm` `.xltx` `.xltm` `.xls` `.ods` `.ots` `.csv` `.tsv` | `.xlsx` `.ods` `.csv` `.tsv` |
-| **Sunum** | `.pptx` `.pptm` `.potx` `.potm` `.ppsx` `.ppsm` `.ppt` `.odp` `.otp` | `.pptx` `.odp` `.ppsx` `.potx` |
+| **Tablo** | `.xlsx` `.xlsm` `.xltx` `.xltm` `.xls` `.ods` `.ots` `.csv` `.tsv` | `.xlsx` `.xlsm` `.ods` `.csv` `.tsv` |
+| **Sunum** | `.pptx` `.pptm` `.potx` `.potm` `.ppsx` `.ppsm` `.ppt` `.odp` `.otp` | `.pptx` `.pptm` `.odp` `.ppsx` `.potx` |
 
-Eski biçimler (`.doc`, `.xls`, `.ppt`) okunur; kaydedince `.docx`/`.xlsx`/`.pptx` olur.
+Eski biçimler (`.doc`, `.xls`, `.ppt`) okunur; kaydedince `.docx`/`.xlsx`/`.pptx` olur. Makrolu kitap ve
+sunu (`.xlsm`, `.pptm`) makrolarıyla aynı biçimde kaydedilir; makrolar çalıştırılmaz.
 
 Mobilde amaç belgeleri **eksiksiz görüntülemek** ve **hızlı düzeltmeler** yapmaktır:
 

@@ -10,7 +10,10 @@ tasarım belirteçleri yeniden yazılmaz.
 - Vite 8 + React 19 + TypeScript 7, Capacitor 8 (Android). Paket yöneticisi pnpm.
 - Takma adlar (`vite.config.ts`, `tsconfig.json`):
   - `@officehere/ui`, `@officehere/core`, `@officehere/formula` → masaüstü paketleri
+  - `@officehere/core/opc` (ve `…/opc/xmlPart`) → geçiş katmanı; ana girişten önce eşlenir
   - `@belge/*` → `vendor/officehere/apps/belge/src/*`, `@tablo/*`, `@sunum/*` aynı şekilde
+- Belge ve Tablo dosya G/Ç Worker'ları (`apps/*/src/io/io.worker.ts`) için `worker: { format: "es" }`.
+  Ekranlar G/Ç'yi şimdilik süreç içinde yapar; Worker yolu `e2e/worker.spec.ts` ile denetlenir.
 - `vendor/officehere` altında **hiçbir dosya değiştirilmez**. Masaüstü kodunda değişiklik
   gerekiyorsa mobil tarafta sarmalayıcı yazılır.
 - Yeni bağımlılık eklenmez (gerekirse izin verici lisanslı olmalı ve gerekçesi yazılmalı).
