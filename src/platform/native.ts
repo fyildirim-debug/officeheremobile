@@ -19,7 +19,7 @@ import {
   type OfficeHereFilesPlugin,
   type OfficeHereSystemPlugin,
 } from "./nativeFiles";
-import { startNativeChrome } from "./nativeChrome";
+import { OfficeHereWindow, startNativeChrome } from "./nativeChrome";
 import type { OpenedDoc, Platform, RecentFile } from "./types";
 import { readRecent, sortRecent, writeRecent } from "./web";
 
@@ -100,6 +100,8 @@ export interface NativeDeps {
   home(): boolean;
   /** Yazdırma ve pano (verilmezse OfficeHereSystem eklentisi). */
   system?: OfficeHereSystemPlugin;
+  /** Etkinlik kayıtlı durumla mı kuruldu (verilmezse OfficeHereWindow eklentisi). */
+  launchState?(): Promise<{ restored: boolean }>;
 }
 
 /** Köprüden tek seferde geçen parça (base64 öncesi); bellek tepe değeri sınırlı kalsın. */
@@ -134,6 +136,7 @@ export const defaultDeps: NativeDeps = {
     const app = document.documentElement.getAttribute("data-app");
     return !app || app === "baslangic";
   },
+  launchState: () => OfficeHereWindow.launchState(),
 };
 
 const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -180,6 +183,8 @@ export function createNativePlatform(deps: NativeDeps = defaultDeps): NativePlat
   let chain: Promise<void> = Promise.resolve();
   let listening = false;
   let observing = false;
+  /** Yerel taraf yanıtı bir kez verir; aynı açılıştaki sonraki sorular (StrictMode) aynı sonucu alır. */
+  let restored: Promise<boolean> | null = null;
 
   /** Geçici kopyayı okuyup belgeye çevirir; biçim uzantıdan (yoksa MIME türünden ya da içerikten). */
   async function readDoc(f: NativeFile): Promise<OpenedDoc> {
@@ -380,6 +385,13 @@ export function createNativePlatform(deps: NativeDeps = defaultDeps): NativePlat
       } catch {
         return null;
       }
+    },
+
+    restoredLaunch() {
+      return (restored ??= (deps.launchState ?? defaultDeps.launchState!)()
+        .then((r) => r?.restored === true)
+        // Eski yerel kabuk (yöntem yok) ya da hata: süreç sonlanmasından dönüş sayılmaz.
+        .catch(() => false));
     },
 
     onExternalOpen(cb) {

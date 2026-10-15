@@ -17,9 +17,26 @@ public class MainActivity extends BridgeActivity {
 
     private volatile boolean contentReady = false;
 
+    /**
+     * Etkinlik kayıtlı durumla mı kuruldu: sistem süreci arka planda sonlandırdı, kullanıcı son
+     * kullanılanlardan ya da simgeden döndü. Kullanıcı uygulamayı kaydırıp kapattıysa kayıtlı durum
+     * yoktur. Web tarafı bir kez okur (OfficeHereWindow.launchState); aynı süreçte sayfa yeniden
+     * yüklenirse (WebView çökmesi) ikinci kez geri getirme yapılmaz.
+     */
+    private static boolean restoredLaunch = false;
+
+    static synchronized boolean takeRestoredLaunch() {
+        boolean r = restoredLaunch;
+        restoredLaunch = false;
+        return r;
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         SplashScreen splash = SplashScreen.installSplashScreen(this);
+        synchronized (MainActivity.class) {
+            restoredLaunch = savedInstanceState != null;
+        }
         // Yeniden oluşturulan etkinlik (ör. süreç geri yüklemesi) başlangıç dosyasını ikinci kez açmasın.
         if (savedInstanceState != null && getIntent() != null) {
             getIntent().putExtra(OfficeHereFilesPlugin.EXTRA_HANDLED, true);

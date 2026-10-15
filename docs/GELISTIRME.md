@@ -47,6 +47,11 @@ Her ekran `DocScreenProps` alır: `{ doc, platform, onClose, dark }`.
   IndexedDB'ye yazar (arka plana geçişte ve düzenlerken 30 sn'de bir); kaydedince ya da ekran
   kapanınca silinir. `doc.recovered` ile açılan taslak `dataName` ile ayrıştırılır, ad/biçim/konum
   özgün belgenin olur ve ekran "Kaydedilmedi" durumunda açılır.
+- Süreç sonlanması: arka plana geçişte (`App` `pause`/`appStateChange`) önce oturum kaydı (belge, konum,
+  görünüm durumu), sonra taslak yazılır (`TaslakYazici.arkaPlan`, hedef 1 sn). Etkinlik kayıtlı durumla
+  kurulursa (`OfficeHereWindow.launchState`) `App` son belgeyi açar; görünüm durumunu ekranın
+  `useTaslak({ gorunum })` kaynağı uygular (verilmezse `shell/gorunum.ts` varsayılanı: Belge seçim ve
+  kaydırma). Aynı kayıt ikinci kez denenmez; taze açılışta kayıt silinir.
 - Yazdır / PDF: ekran masaüstünün yazdırma kökünü kurar (Belge `buildPrintRoot`, Tablo
   `preparePrint` + `buildPrintHtml`, Sunum `PrintRoot`), `platform.print` sistem yazdırma
   penceresini açar; döndüğünde kök kaldırılır. Yazdırma kuralları `html.bl-yazdiriliyor` /

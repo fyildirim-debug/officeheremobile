@@ -90,6 +90,12 @@ export interface Platform {
   writeClipboard(c: ClipContent): Promise<void>;
   /** Sistem panosunu okur; okunamıyor ya da boşsa null. */
   readClipboard(): Promise<ClipContent | null>;
+  /**
+   * Uygulama, sistemin arka planda sonlandırdığı süreçten geri mi yüklendi (Android: etkinlik kayıtlı
+   * durumla yeniden kuruldu; kullanıcı kaydırıp kapattıysa değil). Yalnız ilk soruda doğru döner.
+   * Yoksa (tarayıcı) süreç sonlanmasından dönüş yapılmaz.
+   */
+  restoredLaunch?(): Promise<boolean>;
 }
 
 /** Her belge ekranının aldığı özellikler. */

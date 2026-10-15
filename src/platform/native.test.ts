@@ -444,3 +444,19 @@ describe("AndroidManifest", () => {
     expect(xml).toMatch(/android:windowSoftInputMode="adjustResize"/);
   });
 });
+
+describe("süreç sonlanmasından dönüş", () => {
+  it("yerel yanıt açılışta bir kez sorulur; yöntem yoksa ya da hata verirse dönüş sayılmaz", async () => {
+    const launchState = vi.fn(async () => ({ restored: true }));
+    const p = createNativePlatform({ ...setup().deps, launchState });
+    expect(await p.restoredLaunch!()).toBe(true);
+    // React StrictMode açılış etkisini iki kez çalıştırır: aynı yanıt.
+    expect(await p.restoredLaunch!()).toBe(true);
+    expect(launchState).toHaveBeenCalledTimes(1);
+
+    const yok = createNativePlatform({ ...setup().deps, launchState: vi.fn(async () => Promise.reject(new Error('"OfficeHereWindow.launchState()" is not implemented'))) });
+    expect(await yok.restoredLaunch!()).toBe(false);
+    const taze = createNativePlatform({ ...setup().deps, launchState: vi.fn(async () => ({ restored: false })) });
+    expect(await taze.restoredLaunch!()).toBe(false);
+  });
+});

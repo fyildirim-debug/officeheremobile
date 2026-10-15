@@ -5,14 +5,16 @@ import { Capacitor, registerPlugin, SystemBars, SystemBarsStyle, SystemBarType }
 import { Keyboard } from "@capacitor/keyboard";
 import { StatusBar, Style } from "@capacitor/status-bar";
 
-interface OfficeHereWindowPlugin {
+export interface OfficeHereWindowPlugin {
   /** Pencere zemini: eski WebView'lerde sistem çubuklarının arkasında görünür. */
   setBackground(o: { color: string }): Promise<void>;
   /** İlk ekran çizildi: açılış ekranı kapanır. */
   ready(): Promise<void>;
+  /** Etkinlik kayıtlı durumla mı kuruldu (süreç sonlanmasından dönüş); yalnız ilk çağrıda doğru. */
+  launchState(): Promise<{ restored: boolean }>;
 }
 
-const OfficeHereWindow = registerPlugin<OfficeHereWindowPlugin>("OfficeHereWindow");
+export const OfficeHereWindow = registerPlugin<OfficeHereWindowPlugin>("OfficeHereWindow");
 
 /** "#abc", "#aabbcc", "rgb(…)" ya da "rgba(…)" → "#rrggbb"; çözülemezse null. */
 export function toHex(color: string): string | null {

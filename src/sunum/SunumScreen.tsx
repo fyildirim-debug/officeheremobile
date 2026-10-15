@@ -181,6 +181,16 @@ function Sunum({ doc, platform, onClose, dark, oturum, acilan }: SunumProps) {
     id: doc.recovered?.id,
     bilgi: () => ({ name: dosyaRef.current.ad, uri: uriRef.current, ek: { bicim: dosyaRef.current.bicim } }),
     kodla: async () => ({ data: await sunuBaytlari(a.s.pres, "pptx", "taslak.pptx"), dataName: "taslak.pptx" }),
+    // Süreç sonlanmasından dönüşte etkin slayt geri gelir.
+    gorunum: {
+      al: () => ({ slayt: a.s.slideIdx }),
+      ver: (g) => {
+        const i = typeof g.slayt === "number" ? Math.max(0, Math.min(a.s.pres.slides.length - 1, Math.round(g.slayt))) : a.s.slideIdx;
+        if (i === a.s.slideIdx) return "hazir";
+        a.goToSlide(i);
+        return "uygulandi";
+      },
+    },
   });
 
   // Açık resim zeminlerin ölçümü bitince koyu görünüm yeniden hesaplanır.

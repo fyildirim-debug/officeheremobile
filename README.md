@@ -56,7 +56,9 @@ Mobilde amaç belgeleri **eksiksiz görüntülemek** ve **hızlı düzeltmeler**
 - **Yazdır / PDF:** üç uygulamada masaüstüyle aynı çıktı; sistem yazdırma penceresinde yazıcı ya da
   "PDF olarak kaydet" seçilir.
 - **Otomatik kurtarma:** kaydedilmemiş değişiklikler uygulama arka plana gidince ve düzenlerken
-  aralıklarla saklanır; uygulama kapanırsa başlangıç ekranı "Kurtarılan dosyalar" altında önerir.
+  aralıklarla saklanır. Android uygulamayı arka planda sonlandırırsa geri dönüşte belge kendiliğinden,
+  kaldığı yerde (kaydırma, imleç, etkin slayt) açılır; uygulama kapatıldıysa başlangıç ekranı
+  "Kurtarılan dosyalar" altında önerir.
 - **Şablonlar:** mektup, özgeçmiş, rapor, bütçe, fatura, proje sunusu ve diğerleri (masaüstüyle aynı).
 - Geri al/yinele, kaydedilmemiş değişiklik uyarısı, paylaş, farklı kaydet.
 

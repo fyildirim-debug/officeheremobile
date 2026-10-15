@@ -1,5 +1,24 @@
 // Otomatik kurtarma: taslak deposu ve ekranın taslak yazıcısı (zamanlama, silme, sıralı yazma).
-import { AGIR_KODLAMA_MS, bellekDeposu, EN_COK_TASLAK, taslakAl, taslaklar, taslakYaz, TaslakYazici, type Taslak, type TaslakKaynagi } from "./taslak";
+import {
+  AGIR_KODLAMA_MS,
+  bekleyenGorunum,
+  bellekDeposu,
+  bellekOturumDeposu,
+  EN_COK_TASLAK,
+  gorunumBekle,
+  gorunumUygulandi,
+  ILK_TASLAK_MS,
+  OTURUM_OMRU,
+  oturumuGeriGetir,
+  taslakAl,
+  taslaklar,
+  taslakYaz,
+  TaslakYazici,
+  type Oturum,
+  type Taslak,
+  type TaslakKaynagi,
+} from "./taslak";
+import type { OpenedDoc, RecentFile } from "./types";
 
 const veri = (s: string) => new TextEncoder().encode(s);
 const metin = (b: ArrayBuffer) => new TextDecoder().decode(b);
@@ -148,6 +167,24 @@ describe("TaslakYazici", () => {
     expect(k.kodla).toHaveBeenCalledTimes(1);
   });
 
+  it("ilk taslak ilk değişiklikten kısa süre sonra, sonrakiler aralıkla yazılır", async () => {
+    const depo = bellekDeposu();
+    const k = kaynak();
+    const y = new TaslakYazici("o8", k, depo, 30_000);
+    y.degisti(true);
+    await vi.advanceTimersByTimeAsync(ILK_TASLAK_MS);
+    await y.bitti();
+    expect(k.kodla).toHaveBeenCalledTimes(1);
+    k.set("ikinci");
+    y.degisti(true);
+    await vi.advanceTimersByTimeAsync(ILK_TASLAK_MS * 2);
+    expect(k.kodla).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(30_000);
+    await y.bitti();
+    expect(k.kodla).toHaveBeenCalledTimes(2);
+    expect(metin((await taslakAl("o8", depo))!.data)).toBe("ikinci");
+  });
+
   it("kodlama hatasında sonraki fırsatta yeniden dener", async () => {
     const depo = bellekDeposu();
     const k = kaynak();
@@ -158,5 +195,121 @@ describe("TaslakYazici", () => {
     expect(await taslakAl("o5", depo)).toBeNull();
     await y.simdiYaz();
     expect(await taslakAl("o5", depo)).not.toBeNull();
+  });
+});
+
+describe("oturum: arka plana geçiş", () => {
+  it("önce oturum kaydı (belge, konum, görünüm), sonra taslak; ekran kapanınca kendi kaydı silinir", async () => {
+    const depo = bellekDeposu();
+    const od = bellekOturumDeposu();
+    const k = kaynak();
+    const y = new TaslakYazici("e1", k, depo, 60_000, undefined, od);
+    y.degisti(true);
+    const sure = await y.arkaPlan({ secim: [3, 7] });
+    expect(sure).toBeGreaterThanOrEqual(0);
+    expect(await od.al()).toMatchObject({ ekran: "e1", app: "belge", name: "rapor.odt", uri: "content://x/1", taslak: true, gorunum: { secim: [3, 7] } });
+    expect(await taslakAl("e1", depo)).not.toBeNull();
+    // Başka ekranın kaydı silinmez.
+    const baska = new TaslakYazici("e2", kaynak(), bellekDeposu(), 60_000, undefined, od);
+    baska.kapat();
+    await baska.bitti();
+    expect((await od.al())?.ekran).toBe("e1");
+    y.kapat();
+    await y.bitti();
+    expect(await od.al()).toBeNull();
+  });
+
+  it("kaydedilmiş belge: taslaksız oturum (konumdan açılır); yeni ve değişmemiş belge: kayıt kalmaz", async () => {
+    const od = bellekOturumDeposu();
+    const y = new TaslakYazici("e3", kaynak("tablo"), bellekDeposu(), 60_000, undefined, od);
+    await y.arkaPlan();
+    expect(await od.al()).toMatchObject({ ekran: "e3", taslak: false, uri: "content://x/1" });
+    const yeni = { ...kaynak(), bilgi: () => ({ name: "Belge1.docx" }) };
+    const z = new TaslakYazici("e4", yeni, bellekDeposu(), 60_000, undefined, od);
+    await z.arkaPlan({ secim: [1, 1] });
+    expect(await od.al()).toBeNull();
+  });
+
+  it("kapandıktan sonra arka plana geçiş bir şey yazmaz", async () => {
+    const od = bellekOturumDeposu();
+    const y = new TaslakYazici("e5", kaynak(), bellekDeposu(), 60_000, undefined, od);
+    y.kapat();
+    await y.arkaPlan();
+    await y.bitti();
+    expect(await od.al()).toBeNull();
+  });
+});
+
+describe("oturum: süreç sonlanmasından dönüş", () => {
+  const SIMDI = 1_800_000_000_000;
+  const oturum = (o: Partial<Oturum> = {}): Oturum => ({ ekran: "s1", app: "belge", name: "rapor.docx", uri: "content://x/9", taslak: true, gorunum: { kaydirma: [0, 400] }, zaman: SIMDI - 5000, ...o });
+  const acan = (sonuc: OpenedDoc | null | Error) =>
+    vi.fn(async (f: RecentFile) => {
+      if (sonuc instanceof Error) throw sonuc;
+      return sonuc && { ...sonuc, uri: f.uri };
+    });
+  const dosya: OpenedDoc = { name: "rapor.docx", data: veri("dosya").buffer as ArrayBuffer, app: "belge" };
+
+  it("taslak varsa kaydedilmemiş hâliyle; özgün konum okunabiliyorsa kayıt yeri o", async () => {
+    const depo = bellekDeposu();
+    const od = bellekOturumDeposu();
+    await taslakYaz({ id: "s1", app: "belge", name: "rapor.docx", uri: "content://x/9", dataName: "taslak.docx", data: veri("taslak").buffer as ArrayBuffer, savedAt: SIMDI - 4000 }, depo);
+    await od.yaz(oturum());
+    const ac = acan(dosya);
+    const g = (await oturumuGeriGetir(ac, od, depo, SIMDI))!;
+    expect(g.gorunum).toEqual({ kaydirma: [0, 400] });
+    expect(g.doc).toMatchObject({ name: "rapor.docx", app: "belge", uri: "content://x/9", recovered: { id: "s1", dataName: "taslak.docx", savedAt: SIMDI - 4000 } });
+    expect(metin(g.doc.data!)).toBe("taslak");
+    expect(ac).toHaveBeenCalledTimes(1);
+    // Özgün dosyaya erişim yoksa taslak yine açılır, kaydederken konum sorulur.
+    await od.yaz(oturum());
+    const g2 = (await oturumuGeriGetir(acan(null), od, depo, SIMDI))!;
+    expect(g2.doc.uri).toBeUndefined();
+    expect(metin(g2.doc.data!)).toBe("taslak");
+  });
+
+  it("aynı kayıt ikinci kez denenmez (açılışta çöken belge döngüye girmez)", async () => {
+    const depo = bellekDeposu();
+    const od = bellekOturumDeposu();
+    await od.yaz(oturum({ taslak: false }));
+    expect(await oturumuGeriGetir(acan(dosya), od, depo, SIMDI)).not.toBeNull();
+    expect((await od.al())?.deneme).toBe(1);
+    expect(await oturumuGeriGetir(acan(dosya), od, depo, SIMDI)).toBeNull();
+    expect(await od.al()).toBeNull();
+  });
+
+  it("taslak yoksa kayıtlı konumdan açılır; açılamazsa, eskiyse ya da bozuksa başlangıç ekranı", async () => {
+    const depo = bellekDeposu();
+    const od = bellekOturumDeposu();
+    await od.yaz(oturum());
+    const g = (await oturumuGeriGetir(acan(dosya), od, depo, SIMDI))!;
+    expect(g.doc.recovered).toBeUndefined();
+    expect(metin(g.doc.data!)).toBe("dosya");
+
+    await od.yaz(oturum());
+    expect(await oturumuGeriGetir(acan(new Error("izin yok")), od, depo, SIMDI)).toBeNull();
+    expect(await od.al()).toBeNull();
+
+    await od.yaz(oturum({ zaman: SIMDI - OTURUM_OMRU - 1 }));
+    expect(await oturumuGeriGetir(acan(dosya), od, depo, SIMDI)).toBeNull();
+    await od.yaz({ ...oturum(), app: "baska" } as unknown as Oturum);
+    expect(await oturumuGeriGetir(acan(dosya), od, depo, SIMDI)).toBeNull();
+    expect(await od.al()).toBeNull();
+    // Konumsuz yeni belge (taslağı da yok): geri getirilecek bir şey yok.
+    await od.yaz(oturum({ uri: undefined }));
+    expect(await oturumuGeriGetir(acan(dosya), od, depo, SIMDI)).toBeNull();
+  });
+
+  it("bekleyen görünüm yalnız aynı uygulama ve adda, uygulanana ya da ömrü dolana dek", () => {
+    gorunumBekle("belge", "a.docx", { secim: [1, 2] }, 1000);
+    expect(bekleyenGorunum("tablo", "a.docx", 1000)).toBeUndefined();
+    expect(bekleyenGorunum("belge", "b.docx", 1000)).toBeUndefined();
+    expect(bekleyenGorunum("belge", "a.docx", 1000)).toEqual({ secim: [1, 2] });
+    // StrictMode ikinci bağlaması da görür.
+    expect(bekleyenGorunum("belge", "a.docx", 1001)).toEqual({ secim: [1, 2] });
+    gorunumUygulandi();
+    expect(bekleyenGorunum("belge", "a.docx", 1002)).toBeUndefined();
+    gorunumBekle("sunum", "s.pptx", { slayt: 2 }, 1000);
+    expect(bekleyenGorunum("sunum", "s.pptx", 1000 + 60_000)).toBeUndefined();
   });
 });

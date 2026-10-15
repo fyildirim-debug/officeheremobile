@@ -2,6 +2,7 @@ package com.officehere.mobile;
 
 import android.app.Activity;
 import android.graphics.Color;
+import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
@@ -41,6 +42,14 @@ public class OfficeHereWindowPlugin extends Plugin {
             ((MainActivity) activity).markContentReady();
         }
         call.resolve();
+    }
+
+    /** Süreç sonlanmasından dönüş mü (MainActivity.takeRestoredLaunch; yalnız ilk çağrıda doğru). */
+    @PluginMethod
+    public void launchState(PluginCall call) {
+        JSObject r = new JSObject();
+        r.put("restored", MainActivity.takeRestoredLaunch());
+        call.resolve(r);
     }
 
     static void reapply(Activity activity) {

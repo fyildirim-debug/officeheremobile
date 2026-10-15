@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { appFor, getPlatform, type AppKind, type OpenedDoc, type Platform } from "./platform";
+import { gorunumBekle, oturumuGeriGetir, oturumuUnut, type GeriGelen } from "./platform/taslak";
 import { useTheme } from "./shell/theme";
 import { ConfirmHost, ToastHost, confirmDialog, toast } from "./shell/feedback";
 import { Home } from "./home/Home";
@@ -11,6 +12,22 @@ const SunumScreen = lazy(() => import("./sunum/SunumScreen"));
 
 const YENI_ADI: Record<AppKind, string> = { belge: "belge", tablo: "çalışma kitabı", sunum: "sunu" };
 
+/**
+ * Açılış (sayfa başına bir kez; StrictMode etkiyi iki kez çalıştırır): platform ve, sistem süreci arka
+ * planda sonlandırdıysa, son belge kaldığı yerde (taslak ya da kayıtlı konum, görünüm durumu).
+ */
+let acilis: Promise<{ platform: Platform; geri: GeriGelen | null }> | null = null;
+const acilisHazirla = () =>
+  (acilis ??= (async () => {
+    const platform = await getPlatform();
+    if (!(await platform.restoredLaunch?.().catch(() => false))) {
+      // Taze açılış: eski kayıt unutulur (aynı bağlantıda sonraki yazmalardan önce işlenir; beklenmez).
+      void oturumuUnut();
+      return { platform, geri: null };
+    }
+    return { platform, geri: await oturumuGeriGetir((f) => platform.openRecent(f)).catch(() => null) };
+  })());
+
 export function App() {
   const { dark } = useTheme();
   const [platform, setPlatform] = useState<Platform | null>(null);
@@ -19,7 +36,18 @@ export function App() {
   docRef.current = doc;
 
   useEffect(() => {
-    void getPlatform().then(setPlatform);
+    let iptal = false;
+    void acilisHazirla().then(({ platform: p, geri }) => {
+      if (iptal) return;
+      if (geri) {
+        gorunumBekle(geri.doc.app, geri.doc.name, geri.gorunum);
+        setDoc(geri.doc);
+      }
+      setPlatform(p);
+    });
+    return () => {
+      iptal = true;
+    };
   }, []);
 
   useEffect(() => {
