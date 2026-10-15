@@ -20,6 +20,7 @@
       "@officehere/core": ["./vendor/officehere/packages/core/src/index.ts"],
       "@officehere/core/opc": ["./vendor/officehere/packages/core/src/opc/index.ts"],
       "@officehere/core/opc/*": ["./vendor/officehere/packages/core/src/opc/*.ts"],
+      "@officehere/core/odf": ["./vendor/officehere/packages/core/src/odf/index.ts"],
       "@officehere/formula": ["./vendor/officehere/packages/formula/src/index.ts"],
       "@belge/*": ["./vendor/officehere/apps/belge/src/*"],
       "@tablo/*": ["./vendor/officehere/apps/tablo/src/*"],

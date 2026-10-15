@@ -13,6 +13,7 @@ export const takmaAdlar = {
   // Geçiş katmanı (OPC; "@officehere/core/opc" ve "…/opc/xmlPart"): dizine eşlenir. Ana girişten önce
   // gelmeli, yoksa "@officehere/core" öneki alt yolu da yakalar.
   "@officehere/core/opc": v("packages/core/src/opc"),
+  "@officehere/core/odf": v("packages/core/src/odf"),
   "@officehere/core": v("packages/core/src/index.ts"),
   "@officehere/formula": v("packages/formula/src/index.ts"),
   "@belge": v("apps/belge/src"),
