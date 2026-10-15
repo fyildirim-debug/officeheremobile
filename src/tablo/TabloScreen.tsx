@@ -79,7 +79,7 @@ type Panel = null | "more" | "saveas" | "print" | "fx" | "color" | "fill" | "ali
 
 type LoadState = { kind: "loading" } | { kind: "ready" } | { kind: "error"; message: string };
 
-const FORMAT_LABEL: Record<SaveFormat, string> = { xlsx: ".xlsx", ods: "ODS", csv: "CSV", tsv: "TSV" };
+const FORMAT_LABEL: Record<SaveFormat, string> = { xlsx: ".xlsx", xlsm: ".xlsm", ods: "ODS", csv: "CSV", tsv: "TSV" };
 
 export default function TabloScreen({ doc, platform, onClose, dark }: DocScreenProps) {
   const ctl = useMemo(() => new Controller(), []);

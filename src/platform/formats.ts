@@ -36,6 +36,9 @@ export const MIME: Record<string, string> = {
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  // Makrolu kitap ve sunu kendi biçiminde kaydedilir (makrolar korunur).
+  xlsm: "application/vnd.ms-excel.sheet.macroenabled.12",
+  pptm: "application/vnd.ms-powerpoint.presentation.macroenabled.12",
   odt: "application/vnd.oasis.opendocument.text",
   ods: "application/vnd.oasis.opendocument.spreadsheet",
   odp: "application/vnd.oasis.opendocument.presentation",

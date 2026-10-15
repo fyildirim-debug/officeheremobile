@@ -28,6 +28,8 @@ describe("biçim eşlemesi", () => {
 
   it("MIME türü", () => {
     expect(mimeFor("x.docx")).toContain("wordprocessingml");
+    expect(mimeFor("x.xlsm")).toBe("application/vnd.ms-excel.sheet.macroenabled.12");
+    expect(mimeFor("x.pptm")).toBe("application/vnd.ms-powerpoint.presentation.macroenabled.12");
     expect(mimeFor("x.bilinmez")).toBe("application/octet-stream");
   });
 

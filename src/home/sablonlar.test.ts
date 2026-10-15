@@ -1,12 +1,14 @@
 // Başlangıç ekranındaki şablon listesi masaüstü şablonlarıyla aynı olmalı; her şablon kurulabilmeli.
 import { describe, expect, it } from "vitest";
-import { TEMPLATES as BELGE } from "@belge/templates/templates";
+import { RESMI_KUME_ID, TEMPLATES as BELGE } from "@belge/templates/templates";
 import { TEMPLATES as TABLO, buildTemplate } from "@tablo/templates";
 import { TEMPLATES as SUNUM } from "@sunum/templates/templates";
 import { SABLONLAR, sablondanYeni } from "./sablonlar";
 
 const liste = (app: string) => SABLONLAR.filter((s) => s.app === app).map((s) => [s.id, s.label]);
-const masaustu = (t: { id: string; label: string }[]) => t.filter((x) => x.id !== "blank").map((x) => [x.id, x.label]);
+// "Resmî yazışma" kümesi masaüstünde alan formlu ayrı galeriyle açılır; mobilde henüz yok.
+const masaustu = (t: { id: string; label: string; kume?: string }[]) =>
+  t.filter((x) => x.id !== "blank" && x.id !== RESMI_KUME_ID && !x.kume).map((x) => [x.id, x.label]);
 
 describe("şablonlar", () => {
   it("masaüstü şablon listeleriyle aynı (boş belge hariç)", () => {

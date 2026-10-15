@@ -15,9 +15,11 @@ const oku = (ad: string) => {
 describe("kaydetme biçimi ve adı", () => {
   it("yazılabilen biçim aynen, yazılamayan .pptx olur", () => {
     expect(kayitBicimi("pptx")).toEqual({ bicim: "pptx", donusur: false });
+    // Makrolu sunu makrolarıyla aynı biçimde kalır (masaüstüyle aynı).
+    expect(kayitBicimi("pptm")).toEqual({ bicim: "pptm", donusur: false });
     expect(kayitBicimi("odp")).toEqual({ bicim: "odp", donusur: false });
     expect(kayitBicimi("ppsx")).toEqual({ bicim: "ppsx", donusur: false });
-    for (const f of ["ppt", "pptm", "ppsm", "potm", "otp", "bilinmeyen"]) expect(kayitBicimi(f)).toEqual({ bicim: "pptx", donusur: true });
+    for (const f of ["ppt", "ppsm", "potm", "otp", "bilinmeyen"]) expect(kayitBicimi(f)).toEqual({ bicim: "pptx", donusur: true });
   });
 
   it("dosya adı biçime göre", () => {

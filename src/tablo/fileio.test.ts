@@ -17,12 +17,13 @@ describe("kaydetme adı ve biçimi", () => {
     expect(planSave("veri.ods", "ods")).toEqual({ name: "veri.ods", format: "ods", converted: false });
     expect(planSave("liste.csv", "csv")).toEqual({ name: "liste.csv", format: "csv", converted: false });
     expect(planSave("liste.tsv", "tsv")).toEqual({ name: "liste.tsv", format: "tsv", converted: false });
+    // Makrolu kitap makrolarıyla aynı biçimde kalır (masaüstüyle aynı; makrolar çalıştırılmaz).
+    expect(planSave("makro.xlsm", "xlsm")).toEqual({ name: "makro.xlsm", format: "xlsm", converted: false });
     expect(planSave("Kitap1", "xlsx")).toEqual({ name: "Kitap1.xlsx", format: "xlsx", converted: false });
   });
 
   it("yazılamayan biçim .xlsx olur", () => {
     expect(planSave("eski.xls", "xls")).toEqual({ name: "eski.xlsx", format: "xlsx", converted: true });
-    expect(planSave("makro.xlsm", "xlsm")).toEqual({ name: "makro.xlsx", format: "xlsx", converted: true });
     expect(planSave("sablon.xltx", "xltx")).toEqual({ name: "sablon.xlsx", format: "xlsx", converted: true });
   });
 
@@ -31,7 +32,10 @@ describe("kaydetme adı ve biçimi", () => {
     expect(planSave("eski.xls", "xls", "csv")).toEqual({ name: "eski.csv", format: "csv", converted: false });
   });
 
-  it("ODS/CSV ilk kayıtta bir kez sorulur", () => {
+  it("ODS/CSV ilk kayıtta bir kez sorulur; .xlsm sorulmaz", () => {
+    const xlsm = new WorkbookModel();
+    setFileFormat(xlsm, { format: "xlsm" });
+    expect(needsFormatQuestion(xlsm, planSave("m.xlsm", "xlsm"), false)).toBe(false);
     const wb = new WorkbookModel();
     setFileFormat(wb, { format: "csv", delimiter: ";" });
     const plan = planSave("a.csv", bookFormat(wb));
@@ -82,7 +86,8 @@ describe("açma", () => {
     const tsv = await openWorkbook("veri.tsv", new TextEncoder().encode("a\tb\n1\t2\n").buffer as ArrayBuffer);
     expect(tsv.format).toBe("tsv");
     expect(tsv.wb.getValue(tsv.wb.sheets[0], 1, 1)).toBe(2);
-    expect(planSave("sablon.xlsm", "xlsm").converted).toBe(true);
+    expect(planSave("sablon.xlsm", "xlsm").converted).toBe(false);
+    expect(planSave("sablon.xltm", "xltm").converted).toBe(true);
   });
 
   it("şifreli dosyada anlaşılır hata", async () => {

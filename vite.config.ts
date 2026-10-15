@@ -10,6 +10,9 @@ const v = (p: string) => fileURLToPath(new URL(`./vendor/officehere/${p}`, impor
 export const takmaAdlar = {
   "@officehere/ui/styles.css": v("packages/ui/src/styles/index.css"),
   "@officehere/ui": v("packages/ui/src/index.ts"),
+  // Geçiş katmanı (OPC; "@officehere/core/opc" ve "…/opc/xmlPart"): dizine eşlenir. Ana girişten önce
+  // gelmeli, yoksa "@officehere/core" öneki alt yolu da yakalar.
+  "@officehere/core/opc": v("packages/core/src/opc"),
   "@officehere/core": v("packages/core/src/index.ts"),
   "@officehere/formula": v("packages/formula/src/index.ts"),
   "@belge": v("apps/belge/src"),
@@ -33,5 +36,7 @@ export default defineConfig({
   server: { port: 5180, strictPort: true, host: true },
   preview: { port: 5180, strictPort: true, host: true },
   build: { target: "es2022", chunkSizeWarningLimit: 6000 },
+  // Belge ve Tablo dosya G/Ç'si modül Worker'ında (vendor apps/*/src/io/io.worker.ts) çalışır.
+  worker: { format: "es" },
   test: { globals: true, environment: "node", include: ["test/**/*.test.ts", "src/**/*.test.ts"] },
 });

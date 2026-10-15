@@ -48,7 +48,7 @@ export interface SavePlan {
 
 /**
  * Kaydetme adı ve biçimi. as verilmezse dosya kendi biçiminde (yazılabiliyorsa aynı adla)
- * kaydedilir; .xls, makrolu ve şablon biçimleri .xlsx olur.
+ * kaydedilir; makrolu kitap (.xlsm) makrolarıyla .xlsm kalır; .xls ve şablon biçimleri .xlsx olur.
  */
 export function planSave(name: string, format: BookFormat, as?: SaveFormat): SavePlan {
   if (as) return { name: `${baseOf(name)}.${as}`, format: as, converted: false };
@@ -64,7 +64,7 @@ export function bookFormat(wb: WorkbookModel): BookFormat {
 
 /** Bu biçim için ilk kayıtta "bazı özellikler kaybolabilir" sorusu gerekiyor mu? */
 export function needsFormatQuestion(wb: WorkbookModel, plan: SavePlan, explicit: boolean): boolean {
-  return !explicit && plan.format !== "xlsx" && !fileFormatOf(wb).confirmed;
+  return !explicit && plan.format !== "xlsx" && plan.format !== "xlsm" && !fileFormatOf(wb).confirmed;
 }
 
 /** Biçim sorusunun metni (masaüstü SaveFormatDialog ile aynı). */
