@@ -1,7 +1,12 @@
 name: Sürüm
 
 # Elle tetiklenir ("surum" girişi, ör. 0.2.0 ya da v0.2.0): imzalı Android APK + AAB üretip
-# GitHub Sürümüne (etiket v<surum>, çalışılan commit üzerinde) yükler.
+# GitHub Sürümüne (etiket v<surum>, çalışılan commit üzerinde) yükler. AAB ayrıca Play Console'a
+# yüklenmek üzere ayrı artefakt olarak da verilir (officehere-android-aab-<surum>).
+# "github_surumu" kapalıysa paketler yalnız artefakt olarak verilir; etiket ve GitHub Sürümü açılmaz
+# (Play kapalı test derlemesi: her yüklemede sürüm, dolayısıyla versionCode, büyümeli).
+# "surum: deneme": package.json sürümüyle yalnız artefakt (derleme denemesi; Play'e yüklenemez,
+# versionCode yayımlanmış sürümle aynı).
 #
 # İmza anahtarı depo gizli değerlerinden okunur:
 #   ANDROID_KEYSTORE_BASE64   keystore dosyasının base64 hali (base64 -w0 officehere.jks)
@@ -15,9 +20,14 @@ on:
   workflow_dispatch:
     inputs:
       surum:
-        description: "Sürüm (ör. 0.2.0 ya da v0.2.0)"
+        description: "Sürüm (ör. 0.2.0 ya da v0.2.0); yalnız derleme denemesi için: deneme"
         required: true
         type: string
+      github_surumu:
+        description: "GitHub Sürümü aç (kapalıysa paketler yalnız artefakt: ör. Play kapalı test derlemesi)"
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -40,20 +50,32 @@ jobs:
         shell: bash
         env:
           GIRDI: ${{ inputs.surum }}
+          YAYIN: ${{ inputs.github_surumu }}
         run: |
+          yayinla=true
+          if [ "$YAYIN" = "false" ]; then yayinla=false; fi
           s="${GIRDI#v}"
+          if [ "$GIRDI" = "deneme" ]; then
+            # Deneme: sürüm package.json'dan, yayın yok.
+            yayinla=false
+            s=$(node -p "require('./package.json').version")
+          fi
           if ! [[ "$s" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-            echo "::error title=Geçersiz sürüm::'$GIRDI' MAJOR.MINOR.PATCH biçiminde olmalı (ör. 0.2.0)."
+            echo "::error title=Geçersiz sürüm::'$GIRDI' MAJOR.MINOR.PATCH biçiminde olmalı (ör. 0.2.0) ya da 'deneme'."
             exit 1
           fi
           # versionCode sürümle birlikte artar: 0.2.0 → 2000, 1.4.12 → 1004012.
           kod=$(( BASH_REMATCH[1] * 1000000 + BASH_REMATCH[2] * 1000 + BASH_REMATCH[3] ))
+          ad="$s"
+          if [ "$GIRDI" = "deneme" ]; then ad="$s-deneme-${GITHUB_SHA::7}"; fi
           {
             echo "surum=$s"
             echo "etiket=v$s"
             echo "kod=$kod"
+            echo "ad=$ad"
+            echo "yayinla=$yayinla"
           } >> "$GITHUB_OUTPUT"
-          echo "Sürüm $s (versionCode $kod)"
+          echo "Sürüm $s (versionCode $kod), yayın: $yayinla"
 
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
@@ -116,40 +138,80 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleRelease bundleRelease --no-daemon
 
+      # Anahtar dosyası yalnız derleme süresince diskte kalır (derleme başarısız olsa da silinir).
+      - name: İmza anahtarını sil
+        if: always()
+        run: rm -f "$RUNNER_TEMP/officehere.jks"
+
       - name: Paketleri adlandır ve doğrula
         env:
-          SURUM: ${{ steps.surum.outputs.surum }}
+          AD: ${{ steps.surum.outputs.ad }}
+          KOD: ${{ steps.surum.outputs.kod }}
           IMZALI: ${{ steps.imza.outputs.imzali }}
         run: |
           mkdir -p paketler
           out=android/app/build/outputs
+          bt="$ANDROID_HOME/build-tools/36.0.0"
+          aab="$out/bundle/release/app-release.aab"
           if [ "$IMZALI" = "true" ]; then
             ek=""
             apk="$out/apk/release/app-release.apk"
-            "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$apk"
+            apk_sha=$("$bt/apksigner" verify --print-certs "$apk" | sed -n 's/.*certificate SHA-256 digest: //p' | head -1)
+            # AAB de aynı (yükleme) anahtarıyla imzalı olmalı (öz imzalı sertifika olağan: -strict kullanılmaz).
+            if ! jarsigner -verify "$aab" | grep -q "jar verified"; then
+              echo "::error title=AAB imzasız::app-release.aab imzalı değil."
+              exit 1
+            fi
+            aab_sha=$(keytool -printcert -jarfile "$aab" | sed -n 's/.*SHA256: //p' | head -1 | tr -d ':' | tr 'A-F' 'a-f')
+            if [ -z "$apk_sha" ] || [ "$apk_sha" != "$aab_sha" ]; then
+              echo "::error title=İmza uyuşmuyor::APK ($apk_sha) ve AAB ($aab_sha) farklı anahtarla imzalı."
+              exit 1
+            fi
+            # Play Console ve Android geliştirici doğrulaması kaydında sorulan parmak izi.
+            echo "İmza sertifikası SHA-256: $apk_sha" | tee -a "$GITHUB_STEP_SUMMARY"
           else
             ek="-imzasiz"
             apk="$out/apk/release/app-release-unsigned.apk"
           fi
-          cp "$apk" "paketler/OfficeHere-${SURUM}-android${ek}.apk"
-          cp "$out/bundle/release/app-release.aab" "paketler/OfficeHere-${SURUM}-android${ek}.aab"
+          # Gizlilik beyanı: uygulama hiçbir Android izni (INTERNET dahil) istemez. androidx'in kendi
+          # imzalı alıcı izni (<paket>.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION) dışında izin varsa dur.
+          izinler=$("$bt/aapt2" dump permissions "$apk")
+          echo "$izinler"
+          if echo "$izinler" | grep -E "uses-permission" | grep -v "com.officehere.mobile.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" | grep -q .; then
+            echo "::error title=Beklenmeyen izin::Pakette Android izni var (gizlilik beyanı: izin yok). AndroidManifest ve eklentileri denetleyin."
+            exit 1
+          fi
+          if ! "$bt/aapt2" dump badging "$apk" | grep -q "versionCode='$KOD'"; then
+            echo "::error title=versionCode::Paketin versionCode değeri $KOD değil."
+            exit 1
+          fi
+          cp "$apk" "paketler/OfficeHere-${AD}-android${ek}.apk"
+          cp "$aab" "paketler/OfficeHere-${AD}-android${ek}.aab"
           (cd paketler && sha256sum OfficeHere-* > SHA256SUMS.txt && cat SHA256SUMS.txt)
-          rm -f "$RUNNER_TEMP/officehere.jks"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: officehere-android-${{ steps.surum.outputs.surum }}
+          name: officehere-android-${{ steps.surum.outputs.ad }}
           path: paketler/*
+          if-no-files-found: error
+
+      # Play Console'a (kapalı test / üretim) yüklenecek paket tek başına.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: officehere-android-aab-${{ steps.surum.outputs.ad }}
+          path: paketler/*.aab
           if-no-files-found: error
 
       # Sürüm notları docs/surumler/<etiket>.md dosyasından; yoksa GitHub otomatik üretir.
       - id: notlar
+        if: steps.surum.outputs.yayinla == 'true'
         env:
           ETIKET: ${{ steps.surum.outputs.etiket }}
         run: |
           if [ -f "docs/surumler/${ETIKET}.md" ]; then echo "yol=docs/surumler/${ETIKET}.md" >> "$GITHUB_OUTPUT"; fi
 
       - uses: softprops/action-gh-release@v2
+        if: steps.surum.outputs.yayinla == 'true'
         with:
           tag_name: ${{ steps.surum.outputs.etiket }}
           target_commitish: ${{ github.sha }}

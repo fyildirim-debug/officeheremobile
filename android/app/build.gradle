@@ -1,13 +1,17 @@
 apply plugin: 'com.android.application'
 
-// Yayın imzası: ortam değişkenlerinden (CI: .github/workflows/release.yml) ya da
-// android/keystore.properties dosyasından (yerel; depoya girmez). Yoksa imzasız yayın paketi.
+// Yayın imzası (yükleme anahtarı): ortam değişkenlerinden (CI: .github/workflows/release.yml, gizli
+// değerlerden) ya da android/keystore.properties dosyasından (yerel; depoya girmez, .gitignore). Hiçbiri
+// yoksa yayın paketleri (APK ve AAB) İMZASIZ üretilir; hata ayıklama anahtarıyla asla imzalanmaz.
+// Yarım yapılandırma (ör. dosya var, parola yok) sessizce imzasıza düşmez, derlemeyi durdurur.
 def imza = [:]
+def imzaKaynagi = null
 def imzaDosyasi = rootProject.file('keystore.properties')
 if (imzaDosyasi.exists()) {
     def p = new Properties()
     imzaDosyasi.withInputStream { p.load(it) }
     imza = [store: p.storeFile, storePass: p.storePassword, alias: p.keyAlias, keyPass: p.keyPassword]
+    imzaKaynagi = 'android/keystore.properties'
 }
 if (System.getenv('OH_KEYSTORE_FILE')) {
     imza = [
@@ -16,8 +20,22 @@ if (System.getenv('OH_KEYSTORE_FILE')) {
         alias: System.getenv('OH_KEY_ALIAS'),
         keyPass: System.getenv('OH_KEY_PASSWORD'),
     ]
+    imzaKaynagi = 'OH_KEYSTORE_FILE ortam değişkenleri'
 }
 def imzaVar = imza.store && imza.storePass && imza.alias && imza.keyPass
+if (imzaKaynagi && !imzaVar) {
+    def eksik = [store: 'anahtar dosyası', storePass: 'anahtar deposu parolası', alias: 'anahtar adı', keyPass: 'anahtar parolası']
+        .findAll { k, v -> !imza[k] }.values().join(', ')
+    throw new GradleException("Yayın imzası eksik yapılandırılmış (${imzaKaynagi}): ${eksik} yok. Hepsini verin ya da imzasız derleme için hiçbirini vermeyin.")
+}
+if (imzaVar && !file(imza.store).exists()) {
+    throw new GradleException("Yayın imzası: anahtar dosyası bulunamadı: ${imza.store}")
+}
+gradle.taskGraph.whenReady { graph ->
+    if (graph.allTasks.any { it.name.toLowerCase(Locale.ROOT).contains('release') }) {
+        logger.lifecycle(imzaVar ? "Yayın paketleri imzalanacak: anahtar adı '${imza.alias}' (${imzaKaynagi})." : 'Yayın paketleri İMZASIZ üretilecek (imza anahtarı verilmedi).')
+    }
+}
 
 android {
     namespace = "com.officehere.mobile"
@@ -48,7 +66,9 @@ android {
         release {
             minifyEnabled = false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            if (imzaVar) signingConfig = signingConfigs.release
+            // Anahtar yoksa imza yapılandırması yok: paket imzasız kalır (Play ve cihaz reddeder; yanlışlıkla
+            // hata ayıklama anahtarıyla imzalı bir yayın paketi dağıtılamaz).
+            signingConfig = imzaVar ? signingConfigs.release : null
         }
     }
     lint {
