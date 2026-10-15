@@ -288,6 +288,89 @@
   min-width: 68px;
 }
 
+/* Yazarak girilen boyut / sayfa numarası. */
+.m-belge-punto {
+  width: 64px;
+  box-sizing: border-box;
+  padding: 0 6px;
+  color: var(--oh-text);
+  font-family: inherit;
+  text-align: center;
+}
+
+.m-belge-punto::placeholder {
+  color: var(--oh-text-muted);
+  font-weight: 400;
+}
+
+.m-belge-isaret {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.m-belge-punto:focus {
+  outline: 2px solid var(--oh-accent);
+  outline-offset: -1px;
+}
+
+.m-belge-etiket {
+  min-width: 52px;
+  color: var(--oh-text-muted);
+  font-size: 14px;
+}
+
+/* Gezinti: başlık listesi (düzeye göre girintili), sayfaya git, görüntüleme kipindeki düğme. */
+.m-belge-sayfaya label {
+  color: var(--oh-text-muted);
+  font-size: 14px;
+}
+
+.m-belge-gezinti-oge > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m-belge-gezinti-oge.is-d1 {
+  font-weight: 600;
+}
+
+.m-belge-gezinti-oge.is-d2 {
+  padding-left: 32px;
+}
+
+.m-belge-gezinti-oge.is-d3 {
+  padding-left: 48px;
+}
+
+.m-belge-gezinti-oge:is(.is-d4, .is-d5, .is-d6) {
+  padding-left: 64px;
+  font-size: 14px;
+}
+
+.m-belge-gezinti-dugme {
+  position: absolute;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 1px solid var(--oh-border);
+  border-radius: 16px;
+  background: var(--oh-surface);
+  color: var(--m-accent-text);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 18%);
+  cursor: pointer;
+}
+
+.m-belge-gezinti-dugme:active {
+  background: var(--oh-accent-soft);
+}
+
 .m-belge-cipler {
   display: flex;
   gap: 8px;
@@ -524,4 +607,10 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+}
+
+.m-belge-satir .m-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }

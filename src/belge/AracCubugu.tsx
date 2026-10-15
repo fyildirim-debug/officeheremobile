@@ -2,12 +2,14 @@
 import type { Editor } from "@tiptap/core";
 import {
   Checkmark24Regular,
+  DocumentMargins24Regular,
   FontDecrease24Regular,
   FontIncrease24Regular,
   Highlight24Regular,
   Search24Regular,
   TextBold24Regular,
   TextBulletListLtr24Regular,
+  TextBulletListTree24Regular,
   TextClearFormatting24Regular,
   TextColor24Regular,
   TextEditStyle24Regular,
@@ -81,6 +83,8 @@ export function AracCubugu({ editor, fmt, styles, panel, onPanel, onBul, onBitir
       <ToolButton icon={<TextIndentIncreaseLtr24Regular />} label="Girintiyi artır" onClick={() => yap(() => girinti(editor, 1))} />
       <ToolButton icon={<TextClearFormatting24Regular />} label="Biçimi temizle" onClick={() => yap(() => bicimiTemizle(editor))} />
       <span className="m-belge-tb-ayrac" aria-hidden />
+      <ToolButton icon={<DocumentMargins24Regular />} label="Sayfa yapısı" active={panel === "sayfa"} onClick={() => onPanel("sayfa")} />
+      <ToolButton icon={<TextBulletListTree24Regular />} label="Gezinti" active={panel === "gezinti"} onClick={() => onPanel("gezinti")} />
       <ToolButton icon={<Search24Regular />} label="Bul ve değiştir" onClick={onBul} />
     </BottomToolbar>
   );

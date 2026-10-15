@@ -7,7 +7,7 @@ import type { Editor, JSONContent } from "@tiptap/core";
 import type { Node as PMNode } from "@tiptap/pm/model";
 import { EditorState, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { redoDepth, undoDepth } from "@tiptap/pm/history";
-import { ArrowRedo24Regular, ArrowUndo24Regular, Dismiss20Regular, DocumentOnePage24Regular, Edit24Regular, MoreVertical24Regular, Phone24Regular, Save24Regular, Search24Regular } from "@fluentui/react-icons";
+import { ArrowRedo24Regular, ArrowUndo24Regular, Dismiss20Regular, DocumentOnePage24Regular, Edit24Regular, MoreVertical24Regular, Phone24Regular, Save24Regular, Search24Regular, TextBulletListTree24Regular } from "@fluentui/react-icons";
 import { getUserName } from "@officehere/ui";
 import { DocumentView } from "@belge/views/DocumentView";
 import { PaginationController } from "@belge/editor/pagination";
@@ -21,10 +21,11 @@ import { fieldsKey } from "@belge/editor/fields";
 import { bodyWidth, sectionGeoms } from "@belge/editor/sections";
 import { buildPrintRoot, removePrintRoot } from "@belge/views/printRender";
 import { TEMPLATES } from "@belge/templates/templates";
-import { defaultSettings, emptyDoc, normalizeDoc, type BelgeDocument, type DocSettings } from "@belge/model/document";
+import { defaultSettings, emptyDoc, normalizeDoc, type BelgeDocument, type DocSettings, type PageSetup } from "@belge/model/document";
 import { resolveStyles, styleSheetCss, themeByName, type StyleDef } from "@belge/model/styles";
 import { formatOfExt, openDocument, type FormatId } from "@belge/io";
 import type { ViewOptions } from "@belge/state/context";
+import { applyPageSetup, sectionPageAt } from "@belge/state/pageSetup";
 import { useProtection } from "@belge/state/useProtection";
 import { useFieldSync } from "@belge/state/useFieldSync";
 import "@belge/styles/workspace.css";
@@ -42,13 +43,35 @@ import { baseOf, extOf, type DocScreenProps } from "../platform";
 import { useTaslak } from "../shell/useTaslak";
 import { recentWhen } from "../home/util";
 import { MobilKoruma, NESNE_ADI, kapsayiciIcinde, korumaDurumu, silinenNesneler } from "./koruma";
-import { bicimDurumu, bicimiTemizle, boyutAdim, girinti, hizala, isaretDegistir, isaretEtkin, satirAraligi, stilUygula, vurguRengi, yaziBoyutu, yaziRengi, yaziTipi } from "./komutlar";
+import {
+  bicimDurumu,
+  bicimiTemizle,
+  boyutAdim,
+  girinti,
+  hizala,
+  isaretDegistir,
+  isaretEtkin,
+  kagitBoyutu,
+  kenarBosluklari,
+  paragrafBoslugu,
+  paragrafBosluklari,
+  satirAraligi,
+  secimiEsitle,
+  stilUygula,
+  vurguRengi,
+  yaziBoyutu,
+  yaziRengi,
+  yaziTipi,
+  yonlendirme,
+} from "./komutlar";
 import { farkliHedef, kayitHedefi, kodla, mimeOf } from "./kayit";
 import { useGorunurAlan, useKistirma } from "./dokunma";
 import { koyuNesneCss, sabitKoyuCss, zeminRenkleri } from "./koyuNesneler";
 import { AracCubugu } from "./AracCubugu";
 import { BulCubugu } from "./BulCubugu";
-import { BICIM_PANELLERI, BilgiIcerik, FarkliKaydetIcerik, GorunumIcerik, MenuIcerik, Panel, ParagrafIcerik, RenkIcerik, StilIcerik, YaziTipiIcerik, type Bilgi, type PanelId } from "./Paneller";
+import { BICIM_PANELLERI, BilgiIcerik, FarkliKaydetIcerik, GezintiIcerik, GorunumIcerik, MenuIcerik, Panel, ParagrafIcerik, RenkIcerik, SayfaIcerik, StilIcerik, YaziTipiIcerik, type Bilgi, type GezintiProps, type PanelId } from "./Paneller";
+import { basliklar, etkinBaslik, konumaGit, sayfayaGit, uca, ustKonum } from "./gezinme";
+import { konumAnahtari, useKaldiginYer } from "./konum";
 import "./belge.css";
 
 // Değişiklik izleme yazarı masaüstündeki gibi kullanıcı adı.
@@ -229,7 +252,12 @@ function BelgeGovde({ doc, platform, onClose, dark, yuk, editor, controller, sty
   kirliRef.current = kirli;
   /** Son kaydedilen (ya da açılan) belge; kirli bayrak buna göre. */
   const tabanRef = useRef<PMNode | null>(null);
+  /** Sayfa yapısı ya da rengi son kayıttan beri değişti (belge içeriğinin dışında). */
+  const ayarKirli = useRef(false);
   const odakVardi = useRef(false);
+  const [gezinti, setGezinti] = useState<Pick<GezintiProps, "basliklar" | "etkin" | "sayfa"> | null>(null);
+  /** Kaldığın yerin saklandığı belge kimliği (kaydedince yeni konumu). */
+  const [konumAnahtar, setKonumAnahtar] = useState(() => konumAnahtari(doc));
 
   const styles = useMemo(
     () => resolveStyles(settings.styleSet, settings.theme, settings.fontTheme, settings.paragraphSpacing, settings.customStyles),
@@ -272,7 +300,7 @@ function BelgeGovde({ doc, platform, onClose, dark, yuk, editor, controller, sty
     const on = ({ transaction, appendedTransactions }: { transaction: Transaction; appendedTransactions: Transaction[] }) => {
       const trs = [transaction, ...appendedTransactions];
       if (!kirliRef.current && trs.every((x) => !x.docChanged || x.getMeta(fieldsKey))) tabanRef.current = editor.state.doc;
-      else setKirli(!tabanRef.current || !editor.state.doc.eq(tabanRef.current));
+      else setKirli(ayarKirli.current || !tabanRef.current || !editor.state.doc.eq(tabanRef.current));
       const silinen = silinenNesneler(trs);
       if (silinen.length) toast(`${NESNE_ADI[silinen[0]] ?? "Nesne"} silindi. Geri almak için Geri al'a dokunun.`);
       window.clearTimeout(t);
@@ -514,8 +542,27 @@ function BelgeGovde({ doc, platform, onClose, dark, yuk, editor, controller, sty
       const s = docStats(editor.state.doc);
       setBilgi({ ad, bicim: format, sayfa: mod === "print" ? controller.info.pageCount : (controller.lastPaged?.count ?? controller.info.pageCount), ...s });
     }
+    if (p === "gezinti") {
+      // Klavye kapanır (liste görünsün); atlayınca yazmaya kendiliğinden dönülmez.
+      if (editor.isFocused) (editor.view.dom as HTMLElement).blur();
+      const sc = scrollRef.current;
+      const ust = sc ? ustKonum(editor, sc) : null;
+      const liste = basliklar(editor);
+      const sayfa = mod === "print" && controller.info.pageCount > 1 ? { no: controller.pageOf(ust ?? editor.state.selection.from) + 1, toplam: controller.info.pageCount } : null;
+      setGezinti({ basliklar: liste, etkin: etkinBaslik(liste, ust ?? editor.state.selection.from), sayfa });
+    }
     setPanel(p);
   };
+
+  /** Gezinti: başlığa, sayfaya ya da başa/sona atlar. */
+  const gezintiGit = (fn: (sc: HTMLElement) => unknown) => {
+    setPanel(null);
+    const sc = scrollRef.current;
+    if (sc && !editor.isDestroyed) fn(sc);
+  };
+
+  // Kaldığın yerden devam: okunan yer ve imleç belge başına saklanır, yeniden açılınca geri gelir.
+  useKaldiginYer(editor, controller, scrollEl, konumAnahtar);
 
   const bulAc = () => {
     setPanel(null);
@@ -539,10 +586,14 @@ function BelgeGovde({ doc, platform, onClose, dark, yuk, editor, controller, sty
         // Farklı kaydette (Android'de) aynı ad olsa da konum sorulur.
         const saved = await platform.saveFile(t.name, bytes, mimeOf(t.format), hedefBicim ? { saveAs: true } : undefined);
         const yeniAd = saved.name || t.name;
-        if (saved.uri) uriRef.current = saved.uri;
+        if (saved.uri) {
+          uriRef.current = saved.uri;
+          setKonumAnahtar(saved.uri);
+        }
         setAd(yeniAd);
         setFormat(t.format);
         tabanRef.current = anlik;
+        ayarKirli.current = false;
         setKirli(!editor.state.doc.eq(anlik));
         setKopyaVar(true);
         if (!hedefBicim && t.donustu && format === "doc") toast(`.doc biçimine yazılamadığı için "${yeniAd}" olarak kaydedildi; özgün dosya değişmedi.`, "success");
@@ -686,6 +737,24 @@ function BelgeGovde({ doc, platform, onClose, dark, yuk, editor, controller, sty
   };
   const noop = useCallback(() => {}, []);
   const updateSettings = useCallback((fn: (s: DocSettings) => DocSettings) => setSettingsState((s) => fn(s)), []);
+  /** Sayfa yapısı/rengi değişikliği: belge kaydedilmemiş sayılır, taslak yenilenir. */
+  const ayarDegistir = useCallback((fn: (s: DocSettings) => DocSettings) => {
+    setSettingsState((s) => fn(s));
+    ayarKirli.current = true;
+    setKirli(true);
+    setVersion((v) => v + 1);
+  }, []);
+  const sayfaUygula = (fn: (p: PageSetup) => PageSetup) => {
+    secimiEsitle(editor);
+    applyPageSetup(editor, settings, ayarDegistir, fn);
+  };
+  const sayfaSayisi = useSyncExternalStore(
+    useCallback((cb: () => void) => controller.subscribe(cb), [controller]),
+    () => controller.info.pageCount,
+  );
+  // Belge içeriği değişince (açılışta yüklenince de) yeniden bakılır
+  const icerik = editor.state.doc;
+  const baslikVar = useMemo(() => basliklar(editor).length > 0, [editor, icerik]); // eslint-disable-line react-hooks/exhaustive-deps
   const alan = useGorunurAlan();
   const kayitli = !kirli && kopyaVar;
   const altSatir = `Belge · ${kaydediliyor ? "Kaydediliyor…" : kayitli ? "Kaydedildi" : "Kaydedilmedi"}`;
@@ -778,6 +847,11 @@ function BelgeGovde({ doc, platform, onClose, dark, yuk, editor, controller, sty
         />
       </main>
       {duzenle && !(panel && BICIM_PANELLERI.includes(panel)) && <AracCubugu editor={editor} fmt={fmt} styles={styles} panel={panel} onPanel={panelAc} onBul={bulAc} onBitir={duzenlemeyiBitir} onEngel={engel} />}
+      {!duzenle && !panel && (baslikVar || sayfaSayisi > 1) && (
+        <button type="button" className="m-belge-gezinti-dugme" aria-label="Gezinti" title="Gezinti: başlıklar, sayfaya git" onClick={() => panelAc("gezinti")}>
+          <TextBulletListTree24Regular />
+        </button>
+      )}
 
       <Panel id={panel} onClose={panelKapat}>
         {panel === "yazi" && (
@@ -792,7 +866,35 @@ function BelgeGovde({ doc, platform, onClose, dark, yuk, editor, controller, sty
         )}
         {panel === "renk" && <RenkIcerik tur="yazi" deger={fmt.color} tema={tema} onSec={(c) => yaziRengi(editor, c) || engel()} />}
         {panel === "vurgu" && <RenkIcerik tur="vurgu" deger={fmt.highlight} tema={tema} onSec={(c) => vurguRengi(editor, c) || engel()} />}
-        {panel === "paragraf" && <ParagrafIcerik fmt={fmt} onAlign={(a) => hizala(editor, a) || engel()} onIndent={(y) => girinti(editor, y) || engel()} onLine={(v) => satirAraligi(editor, v) || engel()} />}
+        {panel === "paragraf" && (
+          <ParagrafIcerik
+            fmt={fmt}
+            bosluk={paragrafBosluklari(fmt, styles)}
+            onAlign={(a) => hizala(editor, a) || engel()}
+            onIndent={(y) => girinti(editor, y) || engel()}
+            onLine={(v) => satirAraligi(editor, v) || engel()}
+            onSpace={(k, v) => paragrafBoslugu(editor, k, v) || engel()}
+          />
+        )}
+        {panel === "sayfa" && (
+          <SayfaIcerik
+            sayfa={sectionPageAt(editor, settings.page, fmt.section)}
+            renk={settings.pageColor}
+            tema={tema}
+            onBoyut={(id) => sayfaUygula((p) => kagitBoyutu(p, id))}
+            onYon={(o) => sayfaUygula((p) => yonlendirme(p, o))}
+            onKenar={(id) => sayfaUygula((p) => kenarBosluklari(p, id))}
+            onRenk={(c) => ayarDegistir((s) => ({ ...s, pageColor: c }))}
+          />
+        )}
+        {panel === "gezinti" && gezinti && (
+          <GezintiIcerik
+            {...gezinti}
+            onBaslik={(pos) => gezintiGit((sc) => konumaGit(editor, sc, pos))}
+            onSayfa={(n) => gezintiGit((sc) => sayfayaGit(editor, sc, n, controller.info.pageStarts))}
+            onUc={(son) => gezintiGit((sc) => uca(editor, sc, son))}
+          />
+        )}
         {panel === "stil" && <StilIcerik styles={styles} secili={fmt.styleId} ozel={ozelStiller} onSec={(id) => stilUygula(editor, styles, id) || engel()} />}
         {panel === "gorunum" && <GorunumIcerik mod={mod} onMod={setMod} zoom={olcek * 100} onZoom={dugmeYakinlastir} onSigdir={() => (mod === "print" ? setSigdir(true) : setWebOlcek(1))} />}
         {panel === "bilgi" && bilgi && <BilgiIcerik b={bilgi} />}
@@ -805,7 +907,18 @@ function BelgeGovde({ doc, platform, onClose, dark, yuk, editor, controller, sty
             }}
           />
         )}
-        {panel === "menu" && <MenuIcerik onBul={bulAc} onGorunum={() => setPanel("gorunum")} onPaylas={() => void paylas()} onYazdir={() => void yazdir()} onFarkli={() => setPanel("farkli")} onBilgi={() => panelAc("bilgi")} />}
+        {panel === "menu" && (
+          <MenuIcerik
+            onBul={bulAc}
+            onGezinti={() => panelAc("gezinti")}
+            onSayfa={duzenle && !kilitli ? () => panelAc("sayfa") : undefined}
+            onGorunum={() => setPanel("gorunum")}
+            onPaylas={() => void paylas()}
+            onYazdir={() => void yazdir()}
+            onFarkli={() => setPanel("farkli")}
+            onBilgi={() => panelAc("bilgi")}
+          />
+        )}
       </Panel>
     </div>
   );

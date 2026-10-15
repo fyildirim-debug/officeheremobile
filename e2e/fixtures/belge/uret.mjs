@@ -59,7 +59,26 @@ try {
   const renkli = defaultSettings();
   renkli.pageColor = "#FFF2CC";
   writeFileSync(join(DIZIN, "sayfa-rengi.docx"), await writeDocx(belge([h(1, "Renkli sayfa"), p(t("Bu sayfanın kendi zemin rengi var."))], renkli)));
-  console.log("nesneler.docx, dolgular.docx, sayfa-rengi.docx yazıldı");
+  // Uzun belge (90 sayfa, 45 bölüm, 135 başlık): gezinti ve kaldığın yerden devam. Metin sabit tohumlu üreteçle.
+  const SOZCUKLER = "belge sayfa bölüm rapor toplantı karar madde öneri bütçe proje okul öğrenci öğretmen sınav ders yıl dönem plan amaç yöntem sonuç değerlendirme kurul komisyon üye başkan tarih saat yer konu gündem görüş çalışma süreç uygulama gelişme hedef ölçüt kaynak veri tablo şekil ek açıklama İstanbul Ankara İzmir şehir ilçe mahalle sokak kurum birim müdürlük dilekçe tutanak yazışma onay imza".split(" ");
+  let tohum = 20261015;
+  const rastgele = () => (tohum = (tohum * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const cumle = () => {
+    const n = 8 + Math.floor(rastgele() * 10);
+    const w = Array.from({ length: n }, () => SOZCUKLER[Math.floor(rastgele() * SOZCUKLER.length)]);
+    return w.join(" ").replace(/^./, (c) => c.toLocaleUpperCase("tr-TR")) + ".";
+  };
+  const paragraf = () => p(t(Array.from({ length: 8 }, cumle).join(" ")));
+  const uzun = [];
+  for (let b = 1; b <= 45; b++) {
+    uzun.push(h(1, `Bölüm ${b}`));
+    for (let a = 1; a <= 2; a++) {
+      uzun.push(h(2, `${b}.${a} Alt başlık`));
+      for (let i = 0; i < 5; i++) uzun.push(paragraf());
+    }
+  }
+  writeFileSync(join(DIZIN, "uzun.docx"), await writeDocx(belge(uzun)));
+  console.log("nesneler.docx, dolgular.docx, sayfa-rengi.docx, uzun.docx yazıldı");
 } finally {
   await server.close();
 }

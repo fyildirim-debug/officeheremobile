@@ -9,7 +9,8 @@ import { PARA_DEFAULTS, PARA_TYPES } from "@belge/editor/paragraphFormat";
 import { INDENT_STEP, effectiveFontSize } from "@belge/editor/commands";
 import { applyListAcross } from "@belge/editor/listApply";
 import { syncDomSelection } from "@belge/editor/pagination";
-import type { StyleDef } from "@belge/model/styles";
+import { effectiveProps, type StyleDef } from "@belge/model/styles";
+import { MARGIN_PRESETS, PAGE_SIZE_LIST, type PageSetup } from "@belge/model/document";
 import { computeFormat, type FormatState } from "@belge/editor/formatState";
 import { KAPSAYICI, guvenliAraliklar, secimKorumali } from "./koruma";
 
@@ -207,6 +208,37 @@ export function girinti(editor: Editor, yon: 1 | -1): boolean {
 
 export function satirAraligi(editor: Editor, v: number): number {
   return paragraflarda(editor, (node, pos, tr) => tr.setNodeMarkup(pos, undefined, { ...node.attrs, lineRule: "auto", lineHeight: v }));
+}
+
+/** Paragraf öncesi ya da sonrası boşluk (nk, 0-1584; masaüstü Düzen > Aralık). */
+export function paragrafBoslugu(editor: Editor, kenar: "spaceBefore" | "spaceAfter", nk: number): number {
+  const v = Math.max(0, Math.min(1584, Math.round(nk * 10) / 10));
+  return paragraflarda(editor, (node, pos, tr) => tr.setNodeMarkup(pos, undefined, { ...node.attrs, [kenar]: v }));
+}
+
+/** İmleçteki paragrafın etkin boşlukları: kendi değeri yoksa stilinki. */
+export function paragrafBosluklari(fmt: Pick<FormatState, "spaceBefore" | "spaceAfter" | "styleId">, styles: Record<string, StyleDef>): { once: number; sonra: number } {
+  const p = styles[fmt.styleId] ? effectiveProps(styles, fmt.styleId) : {};
+  return { once: fmt.spaceBefore ?? p.spaceBefore ?? 0, sonra: fmt.spaceAfter ?? p.spaceAfter ?? 0 };
+}
+
+/* ---------------- Sayfa yapısı (masaüstü Düzen sekmesi) ---------------- */
+
+/** Kâğıt boyutu (yönlendirme korunur). */
+export function kagitBoyutu(p: PageSetup, id: string): PageSetup {
+  const s = PAGE_SIZE_LIST.find((x) => x.id === id);
+  if (!s) return p;
+  return p.orientation === "landscape" ? { ...p, width: s.h, height: s.w } : { ...p, width: s.w, height: s.h };
+}
+
+export function yonlendirme(p: PageSetup, o: "portrait" | "landscape"): PageSetup {
+  return p.orientation === o ? p : { ...p, orientation: o, width: p.height, height: p.width };
+}
+
+/** Kenar boşluğu önayarı (Normal, Dar, Orta, Geniş). */
+export function kenarBosluklari(p: PageSetup, id: string): PageSetup {
+  const m = MARGIN_PRESETS.find((x) => x.id === id);
+  return m ? { ...p, margin: { ...p.margin, ...m.m } } : p;
 }
 
 /** Tüm biçimlendirmeyi temizle: karakter biçimleri kalkar, paragraflar Normal olur (masaüstüyle aynı kural). */

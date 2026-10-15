@@ -307,7 +307,8 @@ test.describe("Belge", () => {
 
     await page.getByRole("button", { name: "Yazı tipi", exact: true }).click();
     await page.getByRole("option", { name: "18" }).click();
-    await expect(page.getByLabel("Yazı tipi boyutu")).toHaveText("18");
+    // Boyut kutusu yazılabilir (serbest punto); seçilen boyutu gösterir
+    await expect(page.getByLabel("Yazı tipi boyutu")).toHaveValue("18");
     await page.getByRole("option", { name: "Georgia" }).click();
     await expect(govde(page).locator("h1 span[style*='Georgia']")).toHaveCount(1);
     await page.getByRole("button", { name: "Kapat" }).click();
