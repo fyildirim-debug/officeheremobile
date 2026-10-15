@@ -1,12 +1,14 @@
 // Formül çubuğu (mobil): Ad Kutusu, fx, giriş alanı, iptal/onay. Düzenleme masaüstü denetleyicisiyle
 // (startEdit/updateEdit/commitEdit) yürür; tuşlar masaüstünün handleEditKey işleviyle işlenir.
-// Formül yazarken işlev önerileri, bağımsız değişken ipucu ve sembol tuşları gösterilir.
+// Formül yazarken işlev önerileri, bağımsız değişken ipucu ve sembol tuşları gösterilir. Veri girişinde
+// klavyenin üstünde satır sonu, sağa geç ve sayı/harf klavyesi düğmeleri; sayı hücresinde sayısal klavye.
 import { useLayoutEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react";
-import { Checkmark24Regular, Dismiss24Regular } from "@fluentui/react-icons";
+import { ArrowEnterLeft20Regular, ArrowRight20Regular, Checkmark24Regular, Dismiss24Regular } from "@fluentui/react-icons";
 import type { Controller } from "@tablo/controller";
 import { handleEditKey, useFormulaAssist } from "@tablo/grid/CellEditor";
 import { hintParts } from "@tablo/grid/formulaAssist";
 import { toast } from "../shell/feedback";
+import { klavyeTuru, ondalikVirgul, satirSonuEkle, type KlavyeTuru } from "./editGiris";
 
 const SYMBOLS = ["(", ")", ";", ":", "$", "\"", "+", "-", "*", "/", "&", "<", ">", "=", "%"];
 
@@ -31,8 +33,14 @@ export function FormulaBar({ ctl, editable, docked, inputRef, onFx, onFocusChang
   const shown = e ? e.text : spill && spillChild ? ctl.wb.editText(sheet, spill.anchorRow, spill.anchorCol) : ctl.wb.editText(sheet, a.row, a.col);
   const [nameFocus, setNameFocus] = useState(false);
   const [nameText, setNameText] = useState("");
+  const [focused, setFocused] = useState(false);
   const cellKey = `${sheet.id}:${a.row}:${a.col}`;
   const prevKey = useRef(cellKey);
+  // Ekran klavyesi: hücreye göre (sayı hücresinde sayısal); düğmeyle o hücre için değiştirilebilir.
+  const [elle, setElle] = useState<{ key: string; tur: KlavyeTuru } | null>(null);
+  const formulda = (e ? e.text : shown).startsWith("=");
+  const otomatik: KlavyeTuru = e ? klavyeTuru(ctl.wb, ctl.wb.sheetById(e.sheetId) ?? sheet, e.row, e.col) : klavyeTuru(ctl.wb, sheet, a.row, a.col);
+  const klavye: KlavyeTuru = formulda ? "text" : elle?.key === cellKey ? elle.tur : otomatik;
 
   useLayoutEffect(() => {
     const ta = inputRef.current;
@@ -67,40 +75,77 @@ export function FormulaBar({ ctl, editable, docked, inputRef, onFx, onFocusChang
 
   const blur = () => inputRef.current?.blur();
 
+  /** Alt+Enter karşılığı: seçimin yerine (düzenleme yoksa içeriğin sonuna) satır sonu. */
+  const satirSonu = () => {
+    const ta = inputRef.current;
+    const vardi = !!ctl.edit;
+    if (!startIfNeeded() || !ctl.edit) return;
+    const ed = ctl.edit;
+    const odakta = !!ta && document.activeElement === ta;
+    const bas = vardi && odakta ? ta.selectionStart : ed.caret;
+    const son = vardi && odakta ? ta.selectionEnd : ed.caret;
+    const r = satirSonuEkle(ed.text, bas, son);
+    ctl.updateEdit(r.text, r.caret);
+    if (ta) requestAnimationFrame(() => document.activeElement === ta && ta.setSelectionRange(r.caret, r.caret));
+  };
+
+  /** Girişi onaylayıp sağdaki hücreye geçer (ekran klavyesinde Sekme yok); klavye açık kalır. */
+  const sagaGec = () => {
+    if (ctl.edit) ctl.commitEdit("right");
+    else ctl.advance("right");
+  };
+
+  // Düzenlerken ya da giriş alanı odaktayken (Enter'la sonraki hücreye geçince de) klavyenin üstünde
   let accessory: React.ReactNode = null;
-  if (e) {
-    const chips = assistApi.assist?.items ?? [];
-    const hint = !chips.length && assistApi.call ? hintParts(assistApi.call.def, assistApi.call.argIndex) : null;
-    const formula = e.text.startsWith("=");
-    if (chips.length || hint || formula) {
-      accessory = (
-        <div className="m-tablo-fbar-acc" onPointerDown={keepFocus} onMouseDown={keepFocus}>
-          {chips.map((d) => (
-            <button key={d.key} type="button" className="m-tablo-chip is-fn" onClick={() => assistApi.insert(d)} title={d.desc}>
-              {d.label}
+  if (e || (editable && focused && !spillChild)) {
+    const chips = e ? (assistApi.assist?.items ?? []) : [];
+    const hint = e && !chips.length && assistApi.call ? hintParts(assistApi.call.def, assistApi.call.argIndex) : null;
+    accessory = (
+      <div className="m-tablo-fbar-acc" onPointerDown={keepFocus} onMouseDown={keepFocus}>
+        {!formulda && (
+          <button type="button" className="m-tablo-chip is-key" aria-label="Satır sonu" title="Satır sonu (Alt+Enter)" onClick={satirSonu}>
+            <ArrowEnterLeft20Regular />
+          </button>
+        )}
+        <button type="button" className="m-tablo-chip is-key" aria-label="Gir ve sağa geç" title="Gir ve sağa geç (Sekme)" onClick={sagaGec}>
+          <ArrowRight20Regular />
+        </button>
+        {!formulda && (
+          <button
+            type="button"
+            className="m-tablo-chip is-key is-klavye"
+            aria-label={klavye === "decimal" ? "Harf klavyesi" : "Sayı klavyesi"}
+            title={klavye === "decimal" ? "Harf klavyesi" : "Sayı klavyesi"}
+            onClick={() => setElle({ key: cellKey, tur: klavye === "decimal" ? "text" : "decimal" })}
+          >
+            {klavye === "decimal" ? "ABC" : "123"}
+          </button>
+        )}
+        {chips.map((d) => (
+          <button key={d.key} type="button" className="m-tablo-chip is-fn" onClick={() => assistApi.insert(d)} title={d.desc}>
+            {d.label}
+          </button>
+        ))}
+        {hint && (
+          <span className="m-tablo-hint" aria-live="polite">
+            <b>{hint.name}</b>(
+            {hint.args.map((x, i) => (
+              <span key={i}>
+                {i > 0 && "; "}
+                <span className={x.active ? "is-active" : ""}>{x.text}</span>
+              </span>
+            ))}
+            )
+          </span>
+        )}
+        {formulda &&
+          SYMBOLS.map((s) => (
+            <button key={s} type="button" className="m-tablo-chip is-sym" aria-label={`${s} ekle`} onClick={() => insertText(s)}>
+              {s}
             </button>
           ))}
-          {hint && (
-            <span className="m-tablo-hint" aria-live="polite">
-              <b>{hint.name}</b>(
-              {hint.args.map((x, i) => (
-                <span key={i}>
-                  {i > 0 && "; "}
-                  <span className={x.active ? "is-active" : ""}>{x.text}</span>
-                </span>
-              ))}
-              )
-            </span>
-          )}
-          {formula &&
-            SYMBOLS.map((s) => (
-              <button key={s} type="button" className="m-tablo-chip is-sym" aria-label={`${s} ekle`} onClick={() => insertText(s)}>
-                {s}
-              </button>
-            ))}
-        </div>
-      );
-    }
+      </div>
+    );
   }
 
   return (
@@ -151,10 +196,15 @@ export function FormulaBar({ ctl, editable, docked, inputRef, onFx, onFocusChang
           autoCapitalize="off"
           autoComplete="off"
           enterKeyHint="next"
+          inputMode={editable ? klavye : undefined}
           lang="tr"
           placeholder={editable ? "Değer ya da =formül" : ""}
-          onBlur={() => onFocusChange(false)}
+          onBlur={() => {
+            setFocused(false);
+            onFocusChange(false);
+          }}
           onFocus={() => {
+            setFocused(true);
             onFocusChange(true);
             if (!editable) return;
             if (!ctl.edit) {
@@ -179,6 +229,13 @@ export function FormulaBar({ ctl, editable, docked, inputRef, onFx, onFocusChang
               ctl.commitEdit("down");
               return;
             }
+            // Sayısal klavyenin noktası ondalık virgül olur ("3.5" tarih sayılmasın)
+            const virgul = klavye === "decimal" && native.inputType === "insertText" && native.data === "." ? ondalikVirgul(ta.value, ta.selectionStart) : null;
+            if (virgul !== null) {
+              const at = ta.selectionStart;
+              ta.value = virgul;
+              ta.setSelectionRange(at, at);
+            }
             ctl.updateEdit(ta.value, ta.selectionStart);
           }}
           onSelect={(ev) => {
@@ -192,10 +249,15 @@ export function FormulaBar({ ctl, editable, docked, inputRef, onFx, onFocusChang
           onKeyDown={(ev) => {
             if (ev.nativeEvent.isComposing || ev.keyCode === 229) return;
             if (!ctl.edit) {
-              // Düzenleme yokken Enter alttaki hücreye geçer
-              if (ev.key === "Enter" && !ev.altKey) {
+              // Düzenleme yokken Enter alttaki, Sekme sağdaki hücreye geçer (odak ve klavye yerinde kalır);
+              // Esc odağı bırakır (donanım klavyesinde oklarla gezinmek için).
+              const mod = ev.ctrlKey || ev.metaKey || ev.altKey;
+              if ((ev.key === "Enter" || ev.key === "Tab") && !mod) {
                 ev.preventDefault();
-                ctl.move(ev.shiftKey ? -1 : 1, 0, false, false);
+                ctl.advance(ev.key === "Enter" ? (ev.shiftKey ? "up" : "down") : ev.shiftKey ? "left" : "right");
+              } else if (ev.key === "Escape") {
+                ev.preventDefault();
+                blur();
               }
               return;
             }

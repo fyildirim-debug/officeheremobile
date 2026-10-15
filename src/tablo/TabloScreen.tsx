@@ -375,6 +375,7 @@ export default function TabloScreen({ doc, platform, onClose, dark }: DocScreenP
 
   // Donanım klavyesi (tablet, klavyeli telefon): oklarla gezinme, yazınca düzenleme, Delete ile temizleme
   const keyRef = useRef<(e: KeyboardEvent) => void>(() => {});
+  const kalemUyari = useRef(0);
   keyRef.current = (e) => {
     if (load.kind !== "ready" || e.defaultPrevented || e.isComposing) return;
     if (yazdirKisayolu(e)) {
@@ -393,8 +394,8 @@ export default function TabloScreen({ doc, platform, onClose, dark }: DocScreenP
       return done();
     }
     if ((e.key === "Enter" || e.key === "Tab") && !mod && !e.altKey) {
-      if (e.key === "Enter") ctl.move(e.shiftKey ? -1 : 1, 0, false, false);
-      else ctl.move(0, e.shiftKey ? -1 : 1, false, false);
+      // Enter ↓, Sekme →; Sekmelerle ilerleyip Enter'a basınca başlangıç sütununun altına dönülür
+      ctl.advance(e.key === "Enter" ? (e.shiftKey ? "up" : "down") : e.shiftKey ? "left" : "right");
       return done();
     }
     if (mod && !e.altKey && e.code === "KeyS") {
@@ -406,7 +407,13 @@ export default function TabloScreen({ doc, platform, onClose, dark }: DocScreenP
       return done();
     }
     if (e.key === "Escape" && panoyuBirak(ctl)) return done();
-    if (!editing) return;
+    if (!editing) {
+      if (e.key.length === 1 && !mod && !e.altKey && Date.now() - kalemUyari.current > 3000) {
+        kalemUyari.current = Date.now();
+        toast("Düzenlemek için kaleme dokunun.");
+      }
+      return;
+    }
     if (mod && !e.altKey && !e.shiftKey && (e.code === "KeyX" || e.code === "KeyV")) {
       if (e.code === "KeyX") void kopyala(ctl, platform, true);
       else void yapistir(ctl, platform);
@@ -427,8 +434,14 @@ export default function TabloScreen({ doc, platform, onClose, dark }: DocScreenP
       return done();
     }
     if (e.key.length === 1) {
+      // Seçili hücreye doğrudan yazma: odak hemen formül çubuğuna geçer, hızlı yazılan sonraki harfler
+      // de oraya düşer (kare beklenirse kaybolurdu).
       ctl.startEdit(e.key, true);
-      if (ctl.edit) requestAnimationFrame(() => focusInput());
+      const ta = inputRef.current;
+      if (ctl.edit && ta) {
+        ta.value = ctl.edit.text;
+        focusInput();
+      }
       return done();
     }
   };

@@ -153,6 +153,20 @@
   background: var(--oh-accent-soft);
 }
 
+/* Veri girişi tuşları: satır sonu, sağa geç, sayı/harf klavyesi */
+.m-tablo-chip.is-key {
+  display: inline-grid;
+  place-items: center;
+  min-width: 48px;
+  padding: 0 10px;
+}
+
+.m-tablo-chip.is-klavye {
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+
 .m-tablo-hint {
   flex: none;
   padding: 0 4px;
