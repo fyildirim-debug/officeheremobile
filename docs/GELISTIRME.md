@@ -114,6 +114,8 @@ Her ekran `DocScreenProps` alır: `{ doc, platform, onClose, dark }`.
 - Kaydetme: açık belge aynı konuma yazılır; yeni belgede, uzantı değişiminde ve
   "Farklı kaydet"te (`saveFile(..., { saveAs: true })`) konum sorulur. Vazgeçilirse
   `AbortError` fırlar ve hata olarak gösterilmez.
-- Sürüm: GitHub Actions › `release.yml` (girdi `surum`). İmza için depo gizli değerleri:
+- Sürüm: GitHub Actions › `release.yml` (girdiler `surum`, `github_surumu`; `surum: deneme` yalnız
+  derleme denemesi). APK + AAB; AAB ayrıca Play için ayrı artefakt. İmza için depo gizli değerleri:
   `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
-  `ANDROID_KEY_PASSWORD`. Yoksa imzasız dosyalarla taslak sürüm açılır.
+  `ANDROID_KEY_PASSWORD`. Yoksa imzasız dosyalarla taslak sürüm açılır. Play mağaza metni, gizlilik
+  beyanı ve kapalı test adımları: [magaza.md](magaza.md).
