@@ -48,12 +48,43 @@ describe("belgeGorunumu", () => {
     b.ed.destroy();
   });
 
+  it("kaydırma kırpıldıysa düzen yerleşince yenilenir; başkası kaydırdıysa dokunulmaz", () => {
+    const b = kur();
+    // Kaydırma kutusu: tarayıcı gibi scrollTop'u içerik yüksekliğine göre kırpar.
+    let yukseklik = 500;
+    let top = 0;
+    const sc = {
+      scrollLeft: 0,
+      clientHeight: 100,
+      get scrollTop() {
+        return top;
+      },
+      set scrollTop(v: number) {
+        top = Math.max(0, Math.min(v, yukseklik - 100));
+      },
+      getBoundingClientRect: () => ({ top: 0 }),
+    } as unknown as HTMLElement;
+    const k = belgeGorunumu(() => ({ ed: b.ed, sc }));
+    const g = { secim: [3, 3], kaydirma: [0, 900] };
+    expect(k.ver(g)).toBe("uygulandi");
+    expect(sc.scrollTop).toBe(400);
+    // Sayfalar yerleşti: içerik uzadı, kaydırma hedefe tamamlanır.
+    yukseklik = 2000;
+    expect(k.ver(g)).toBe("hazir");
+    expect(sc.scrollTop).toBe(900);
+    // Ekranın kendi "kaldığın yer"i (ya da kullanıcı) başka yere kaydırdı: artık dokunulmaz.
+    sc.scrollTop = 700;
+    k.ver(g);
+    expect(sc.scrollTop).toBe(700);
+    b.ed.destroy();
+  });
+
   it("belge kısaldıysa seçim sınırlanır; bozuk durum yok sayılır", () => {
     const b = kur();
     const k = belgeGorunumu(() => b);
     expect(k.ver({ secim: [9999, 9999], kaydirma: "x" })).toBe("uygulandi");
     expect(b.ed.state.selection.head).toBeLessThanOrEqual(b.ed.state.doc.content.size);
-    expect(belgeGorunumu(() => b).ver({ secim: null })).toBe("hazir");
+    expect(belgeGorunumu(() => b).ver({ secim: null })).toBe("uygulandi");
     b.ed.destroy();
   });
 });

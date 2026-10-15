@@ -42,10 +42,12 @@ function imlecUstu(ed: Editor, sc: HTMLElement, pos: number): number | undefined
 /**
  * Belge: seçim (anchor/head) ve kaydırma. İmleç ekrandaysa geri gelince aynı yüksekliğe getirilir
  * (yakınlaştırma ya da sayfa düzeni biraz değişse de); değilse kaydırma konumu aynen uygulanır.
+ * İkisi de içerik başına bir kez verilir (ekran içeriği yeniden kurarsa — StrictMode, ikinci yükleme —
+ * yeniden). Sonraki karelerde kaydırma yalnız düzen henüz yerleşmediği için kırpıldıysa yenilenir;
+ * kullanıcı ya da ekranın kendi "kaldığın yerden devam"ı (belge/konum.ts) kaydırdıysa dokunulmaz.
  */
 export function belgeGorunumu(bul: () => { ed: Editor; sc: HTMLElement } | null = belgeOgeleri): GorunumKaynagi {
-  /** Seçimin verildiği belge (ekran içeriği yeniden kurarsa — StrictMode, ikinci yükleme — yeniden verilir). */
-  const secimVerilen = new WeakMap<Editor, PMNode>();
+  const verilen = new WeakMap<Editor, { doc: PMNode; hedef: number; son: number | null }>();
   return {
     al() {
       const o = bul();
@@ -57,11 +59,20 @@ export function belgeGorunumu(bul: () => { ed: Editor; sc: HTMLElement } | null 
       const o = bul();
       if (!o) return "bekle";
       const { ed, sc } = o;
+      const k = ikili(g.kaydirma);
+      const d = verilen.get(ed);
+      if (d && d.doc === ed.state.doc) {
+        if (d.son !== null) {
+          if (Math.abs(sc.scrollTop - d.son) > 1) d.son = null;
+          else if (sc.scrollTop < d.hedef - 1) {
+            sc.scrollTop = d.hedef;
+            d.son = sc.scrollTop;
+          }
+        }
+        return "hazir";
+      }
       const secim = ikili(g.secim);
-      let sonuc: VerSonucu = "hazir";
-      // Seçim içerik başına bir kez: kullanıcının sonraki seçimi ezilmez.
-      if (secim && secimVerilen.get(ed) !== ed.state.doc) {
-        sonuc = "uygulandi";
+      if (secim) {
         const doc = ed.state.doc;
         const sinir = (p: number) => Math.max(0, Math.min(doc.content.size, Math.round(p)));
         try {
@@ -69,17 +80,17 @@ export function belgeGorunumu(bul: () => { ed: Editor; sc: HTMLElement } | null 
         } catch {
           // Belge değiştiyse seçim uygulanamaz; kaydırma yine uygulanır.
         }
-        secimVerilen.set(ed, ed.state.doc);
       }
-      const k = ikili(g.kaydirma);
+      let hedef = sc.scrollTop;
       if (k) {
         sc.scrollLeft = k[0];
-        sc.scrollTop = k[1];
+        sc.scrollTop = hedef = k[1];
       }
-      const hedef = typeof g.imlec === "number" ? g.imlec : undefined;
-      const simdi = hedef === undefined ? undefined : imlecUstu(ed, sc, ed.state.selection.head);
-      if (hedef !== undefined && simdi !== undefined) sc.scrollTop += simdi - hedef;
-      return sonuc;
+      const imlec = typeof g.imlec === "number" ? g.imlec : undefined;
+      const simdi = imlec === undefined ? undefined : imlecUstu(ed, sc, ed.state.selection.head);
+      if (imlec !== undefined && simdi !== undefined) sc.scrollTop = hedef += simdi - imlec;
+      verilen.set(ed, { doc: ed.state.doc, hedef, son: k ? sc.scrollTop : null });
+      return "uygulandi";
     },
   };
 }
