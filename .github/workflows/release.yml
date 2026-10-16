@@ -60,12 +60,24 @@ jobs:
             yayinla=false
             s=$(node -p "require('./package.json').version")
           fi
-          if ! [[ "$s" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-            echo "::error title=Geçersiz sürüm::'$GIRDI' MAJOR.MINOR.PATCH biçiminde olmalı (ör. 0.2.0) ya da 'deneme'."
+          if ! [[ "$s" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)(-beta\.([0-9]+))?$ ]]; then
+            echo "::error title=Geçersiz sürüm::'$GIRDI' MAJOR.MINOR.PATCH (ör. 0.2.0) ya da ön sürüm MAJOR.MINOR.0-beta.N (ör. 0.2.0-beta.1) biçiminde olmalı ya da 'deneme'."
             exit 1
           fi
           # versionCode sürümle birlikte artar: 0.2.0 → 2000, 1.4.12 → 1004012.
           kod=$(( BASH_REMATCH[1] * 1000000 + BASH_REMATCH[2] * 1000 + BASH_REMATCH[3] ))
+          onsurum=false
+          if [ -n "${BASH_REMATCH[4]}" ]; then
+            # Ön sürüm yalnız X.Y.0 için: X.Y.0-beta.N → (X.Y.0 kodu) − 100 + N (0.2.0-beta.1 → 1901).
+            # Kararlı X.Y.0 betanın üzerine kurulabilir; önceki X.(Y-1).p kodlarından büyük kalır.
+            n=${BASH_REMATCH[5]}
+            if [ "${BASH_REMATCH[3]}" != "0" ] || [ "$n" -lt 1 ] || [ "$n" -gt 99 ]; then
+              echo "::error title=Geçersiz ön sürüm::Ön sürüm yalnız X.Y.0-beta.N (N 1-99) olabilir: '$GIRDI'."
+              exit 1
+            fi
+            kod=$(( kod - 100 + n ))
+            onsurum=true
+          fi
           ad="$s"
           if [ "$GIRDI" = "deneme" ]; then ad="$s-deneme-${GITHUB_SHA::7}"; fi
           {
@@ -74,6 +86,7 @@ jobs:
             echo "kod=$kod"
             echo "ad=$ad"
             echo "yayinla=$yayinla"
+            echo "onsurum=$onsurum"
           } >> "$GITHUB_OUTPUT"
           echo "Sürüm $s (versionCode $kod), yayın: $yayinla"
 
@@ -216,6 +229,8 @@ jobs:
           tag_name: ${{ steps.surum.outputs.etiket }}
           target_commitish: ${{ github.sha }}
           name: OfficeHere Mobil ${{ steps.surum.outputs.etiket }}
+          # Ön sürüm (beta) GitHub'da "Pre-release" olur; "releases/latest" onu döndürmez.
+          prerelease: ${{ steps.surum.outputs.onsurum == 'true' }}
           files: paketler/*
           body_path: ${{ steps.notlar.outputs.yol }}
           generate_release_notes: ${{ steps.notlar.outputs.yol == '' }}

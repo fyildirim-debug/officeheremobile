@@ -15,7 +15,7 @@ karşılıklarıdır, girişte doğrulanmalıdır.
 | Hedef API (targetSdk) | 36 (Android 16). 31.08.2026'dan beri yeni uygulamalar için zorunlu düzey |
 | En düşük sürüm (minSdk) | 24 (Android 7.0); ayrıca Android System WebView 98+ |
 | İzinler | **Yok** (aşağıda §4.1) |
-| versionCode | `MAJOR × 1 000 000 + MINOR × 1 000 + PATCH` (0.2.0 → 2000). Play her yüklemede daha büyük versionCode ister: aynı sürüm numarası ikinci kez yüklenemez |
+| versionCode | `MAJOR × 1 000 000 + MINOR × 1 000 + PATCH` (0.2.0 → 2000). Ön sürüm yalnız X.Y.0 için: `X.Y.0-beta.N` → X.Y.0 kodu − 100 + N (0.2.0-beta.1 → 1901), böylece kararlı X.Y.0 betanın üzerine kurulur. Play her yüklemede daha büyük versionCode ister: aynı sürüm numarası ikinci kez yüklenemez |
 | Paket türü | Android App Bundle (`.aab`); GitHub Sürümü ve IzzyOnDroid için ayrıca `.apk` |
 
 ## 2. Mağaza girişi (Ana mağaza girişi)
@@ -200,6 +200,7 @@ Değişiklikler. Bu politika değişirse güncel hâli bu sayfada yayımlanır.
 | Girdi | Sonuç |
 | --- | --- |
 | `surum: 0.2.0`, `github_surumu: true` | Etiket `v0.2.0` + GitHub Sürümü (APK ve AAB) + artefaktlar |
+| `surum: 0.2.0-beta.1`, `github_surumu: true` | Etiket `v0.2.0-beta.1` + GitHub'da "Pre-release" (APK ve AAB; versionCode 1901) |
 | `surum: 0.2.1`, `github_surumu: false` | Yalnız artefaktlar; Play kapalı test derlemesi için |
 | `surum: deneme` | package.json sürümüyle yalnız artefaktlar (derleme denemesi; versionCode yayımlanmış sürümle aynı olduğundan Play'e yüklenemez) |
 

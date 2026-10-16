@@ -308,6 +308,7 @@ export function Home({ platform, onOpen, onError }: Props) {
 
         <div className="m-home-credit">
           <DeveloperCredit variant="footer" />
+          <p className="m-home-vaat">Hesap yok · Reklam yok · Abonelik yok · Telemetri yok · Yapay zekâ yok</p>
         </div>
       </main>
 
