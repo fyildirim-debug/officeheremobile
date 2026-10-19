@@ -13,6 +13,11 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "Bağımlılık"
+    # Playwright 1.56.1'de sabit: 1.64'ün Chromium 156'sında iki uçtan uca test düşüyor (Sunum küçük resme
+    # dokunma, Belge süreç sonlanmasından dönüşte imleç konumu). Kök neden çözülünce bu istisna kaldırılır.
+    ignore:
+      - dependency-name: "playwright"
+      - dependency-name: "@playwright/test"
     groups:
       uretim:
         dependency-type: production
