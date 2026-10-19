@@ -17,6 +17,8 @@ export default defineConfig({
     locale: "tr-TR",
     timezoneId: "Europe/Istanbul",
     acceptDownloads: true,
+    // OH_CHROMIUM: Playwright'ın kendi tarayıcısı kurulamayan ortamda (ör. bulut oturumu) yerel Chromium
+    ...(process.env.OH_CHROMIUM ? { launchOptions: { executablePath: process.env.OH_CHROMIUM } } : {}),
   },
   projects: [
     { name: "acik", use: { colorScheme: "light" } },
