@@ -17,6 +17,9 @@ export default defineConfig({
     locale: "tr-TR",
     timezoneId: "Europe/Istanbul",
     acceptDownloads: true,
+    // Pano izni açıkça verilir: izin sorusu başsız tarayıcıda yanıtsız kalınca Yapıştır beklemede kalıyordu
+    // (Playwright sürümüne göre okuma hemen reddediliyor ya da bekliyor). Kullanıcı izni onaylamış gibi.
+    permissions: ["clipboard-read", "clipboard-write"],
     // OH_CHROMIUM: Playwright'ın kendi tarayıcısı kurulamayan ortamda (ör. bulut oturumu) yerel Chromium
     ...(process.env.OH_CHROMIUM ? { launchOptions: { executablePath: process.env.OH_CHROMIUM } } : {}),
   },
