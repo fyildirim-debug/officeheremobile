@@ -16,7 +16,9 @@ concurrency:
 jobs:
   denetim:
     name: Tip denetimi, test, derleme, uçtan uca
-    runs-on: ubuntu-latest
+    # Playwright 1.56.1'de sabit (Chromium 156 takibi, dependabot.yml) ve bu sürüm ubuntu-latest'in yeni
+    # imajını (26.04) desteklemiyor; Playwright yükseltilince ubuntu-latest'e dönülür.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
         with:
